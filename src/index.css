@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 터치 지연 제거 + 모바일 탭 하이라이트 정리 */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 노치/홈 인디케이터 안전영역 하단 패딩 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── Reference custom animations / utilities ─────────────── */
+@layer utilities {
+  .animate-dash {
+    stroke-dasharray: 8 4;
+    animation: dash-movement 25s linear infinite;
+  }
+  .animate-spin-slow {
+    animation: spin 12s linear infinite;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+}
+
+@keyframes dash-movement {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
