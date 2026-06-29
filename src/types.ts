@@ -1,6 +1,6 @@
 import type { Category } from './lib/categories';
 
-/** 실제 지도(Kakao) 좌표. 지도 키가 있을 때 사용 */
+/** 실제 위경도 좌표(미래 네이버 Maps 표시용으로 적재). 현재 표시는 SVG x/y 사용 */
 export type GeoLocation = {
   name: string;
   lat: number;
@@ -20,7 +20,7 @@ export type ScheduleItem = {
   /** SVG 폴백 지도용 좌표 (0~500) — 지도 클릭/프리셋으로 설정 */
   x: number;
   y: number;
-  /** 실제 지도(Kakao)용 위경도 — 키 연동 시 채워짐 */
+  /** 위경도 — 네이버 검색 결과 선택 시 채워짐(미래 실지도용) */
   location?: GeoLocation;
 };
 

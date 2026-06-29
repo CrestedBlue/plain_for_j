@@ -12,8 +12,8 @@ type Props = {
 };
 
 /**
- * 지도 키가 없을 때 보여주는 인터랙티브 SVG 벡터 지도(폴백).
- * 실제 지도(Kakao) 연동은 KakaoMap 컴포넌트가 담당한다.
+ * 인터랙티브 SVG 벡터(개념) 지도 — 현재 유일한 지도 표시 경로.
+ * 실제 지리좌표가 아닌 양식화된 x/y(0~500) 배치를 사용한다.
  */
 export function VectorMapFallback({
   schedules,
