@@ -2,6 +2,9 @@ import type { FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
 import { CATEGORIES, CATEGORY_KEYS, SEOUL_LANDMARKS } from '../../lib/categories';
 import { Icon } from '../icons/Icon';
+// [프로토타입 보류] 일정별 "의논" 댓글 — 사람 식별(인증) 먼저 만든 뒤 재활성화 예정.
+//   하드코딩 더미라 지금은 끔. 참고: src/components/dashboard/CommentThread.tsx
+// import { CommentThread } from './CommentThread';
 
 export type ScheduleFormState = {
   time: string;
@@ -96,6 +99,8 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
           </button>
         )}
       </div>
+
+      {/* [프로토타입 보류] 일정별 의논(댓글) — 인증 도입 후 재활성화. <CommentThread /> */}
     </div>
   );
 }
