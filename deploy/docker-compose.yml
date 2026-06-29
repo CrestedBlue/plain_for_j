@@ -1,0 +1,21 @@
+# 로컬 개발용 MySQL. `docker compose -f deploy/docker-compose.yml up -d`
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: planforj-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: planforj
+      MYSQL_USER: planforj
+      MYSQL_PASSWORD: planforj
+    ports:
+      # 호스트 3307 → 컨테이너 3306 (로컬 3306이 보통 점유돼 있어 충돌 회피)
+      - "3307:3306"
+    volumes:
+      - planforj_mysql:/var/lib/mysql
+      # 최초 기동 시 스키마 자동 적용
+      - ../server/internal/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+volumes:
+  planforj_mysql:

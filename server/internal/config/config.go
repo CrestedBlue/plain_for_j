@@ -1,0 +1,52 @@
+// Package config는 환경변수에서 서버 설정을 읽는다.
+package config
+
+import (
+	"fmt"
+	"os"
+)
+
+// Config는 서버 구동에 필요한 설정 묶음이다.
+type Config struct {
+	AppPort string
+	DB      DBConfig
+}
+
+// DBConfig는 MySQL 접속 정보다.
+type DBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+}
+
+// DSN은 go-sql-driver/mysql 형식의 접속 문자열을 만든다.
+func (d DBConfig) DSN() string {
+	// parseTime: DATE/TIMESTAMP를 time.Time으로, charset/loc은 한글·시간대 안전하게.
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4&loc=Local",
+		d.User, d.Password, d.Host, d.Port, d.Name,
+	)
+}
+
+// Load는 환경변수를 읽어 Config를 만든다. 누락 시 합리적 기본값을 사용한다.
+func Load() Config {
+	return Config{
+		AppPort: env("APP_PORT", "8080"),
+		DB: DBConfig{
+			Host:     env("DB_HOST", "127.0.0.1"),
+			Port:     env("DB_PORT", "3306"),
+			User:     env("DB_USER", "planforj"),
+			Password: env("DB_PASSWORD", "planforj"),
+			Name:     env("DB_NAME", "planforj"),
+		},
+	}
+}
+
+func env(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
