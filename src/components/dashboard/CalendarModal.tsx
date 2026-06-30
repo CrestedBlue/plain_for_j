@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Day } from '../../types';
 import { buildCalendarMonths } from '../../lib/calendar';
 import { Icon } from '../icons/Icon';
@@ -32,6 +32,22 @@ export function CalendarModal({
     days.forEach((d, i) => map.set(d.date, i));
     return map;
   }, [days]);
+
+  // 이름은 로컬 초안으로만 입력받고, 캘린더를 벗어날 때(언마운트) 1회만 저장한다.
+  // (키 입력마다 PUT 나가던 문제 해결)
+  const [titleDraft, setTitleDraft] = useState(travelTitle);
+  const draftRef = useRef(titleDraft);
+  draftRef.current = titleDraft;
+  const originalTitleRef = useRef(travelTitle);
+  const onRenameRef = useRef(onRename);
+  onRenameRef.current = onRename;
+
+  useEffect(() => {
+    return () => {
+      const next = draftRef.current.trim();
+      if (next && next !== originalTitleRef.current) onRenameRef.current(next);
+    };
+  }, []);
 
   return (
     <div
@@ -68,8 +84,8 @@ export function CalendarModal({
             </label>
             <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-700/60 focus-within:border-indigo-500 rounded-lg px-3 py-1.5 transition">
               <input
-                value={travelTitle}
-                onChange={(e) => onRename(e.target.value)}
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
                 placeholder="여행 이름"
                 aria-label="여행 이름"
                 className="flex-1 min-w-0 bg-transparent text-base font-bold text-slate-100 outline-none placeholder:text-slate-600"
