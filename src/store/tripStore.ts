@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { Category } from '../lib/categories';
-import type { ScheduleItem, Trip } from '../types';
-import { buildDays } from '../lib/dates';
+import type { GeoLocation, Trip } from '../types';
+import { api, type ItemPayload, type TripSummary } from '../lib/api';
 
-const newId = (): string => crypto.randomUUID();
+// 서버(MySQL) 백엔드 연동 스토어. 서버가 원본(source of truth)이고
+// zustand는 화면용 캐시만 보관한다(서버상태 중복 저장 금지 원칙).
 
 type CreateTripInput = {
   title: string;
@@ -12,139 +12,157 @@ type CreateTripInput = {
   endDate: string;
 };
 
-export type AddItemInput = {
+export type ItemInput = {
   time: string;
   locationName: string;
   displayName: string;
   category: Category;
-  notes?: string;
+  notes: string;
   x: number;
   y: number;
+  location?: GeoLocation;
 };
+
+type Status = 'idle' | 'loading' | 'ready' | 'error';
 
 type TripState = {
-  trips: Trip[];
+  trips: TripSummary[]; // 목록(요약)
+  activeTrip: Trip | null; // 현재 작업 중인 여행(전체)
   activeTripId: string | null;
+  status: Status;
+  error: string | null;
 
-  createTrip: (input: CreateTripInput) => string;
-  deleteTrip: (id: string) => void;
-  renameTrip: (id: string, title: string) => void;
-  selectTrip: (id: string | null) => void;
+  loadTrips: () => Promise<void>;
+  createTrip: (input: CreateTripInput) => Promise<string | null>;
+  deleteTrip: (id: string) => Promise<void>;
+  renameTrip: (id: string, title: string) => Promise<void>;
+  selectTrip: (id: string | null) => Promise<void>;
 
-  addItem: (date: string, input: AddItemInput) => string;
-  updateItem: (date: string, itemId: string, patch: Partial<Omit<ScheduleItem, 'id'>>) => void;
-  removeItem: (date: string, itemId: string) => void;
+  addItem: (date: string, input: ItemInput) => Promise<string | null>;
+  updateItem: (date: string, itemId: string, input: ItemInput) => Promise<void>;
+  removeItem: (date: string, itemId: string) => Promise<void>;
 };
 
-/** 활성 여행의 특정 날짜 items를 불변 업데이트 */
-function mapActiveDayItems(
-  state: TripState,
-  date: string,
-  fn: (items: ScheduleItem[]) => ScheduleItem[],
-): Partial<TripState> {
-  return {
-    trips: state.trips.map((trip) =>
-      trip.id !== state.activeTripId
-        ? trip
-        : {
-            ...trip,
-            days: trip.days.map((day) =>
-              day.date !== date ? day : { ...day, items: fn(day.items) },
-            ),
-          },
-    ),
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
+
+const toPayload = (input: ItemInput): ItemPayload => ({
+  time: input.time,
+  locationName: input.locationName,
+  displayName: input.displayName,
+  category: input.category,
+  notes: input.notes,
+  x: input.x,
+  y: input.y,
+  location: input.location,
+});
+
+export const useTripStore = create<TripState>((set, get) => {
+  // 활성 여행을 서버에서 다시 받아 캐시를 갱신한다(변경 후 호출).
+  const refreshActive = async (): Promise<void> => {
+    const id = get().activeTripId;
+    if (!id) return;
+    const trip = await api.getTrip(id);
+    set({ activeTrip: trip });
   };
-}
 
-export const useTripStore = create<TripState>()(
-  persist(
-    (set) => ({
-      trips: [],
-      activeTripId: null,
+  return {
+    trips: [],
+    activeTrip: null,
+    activeTripId: null,
+    status: 'idle',
+    error: null,
 
-      createTrip: ({ title, startDate, endDate }) => {
-        const id = newId();
-        const trip: Trip = { id, title, startDate, endDate, days: buildDays(startDate, endDate) };
-        set((s) => ({ trips: [...s.trips, trip], activeTripId: id }));
-        return id;
-      },
+    loadTrips: async () => {
+      set({ status: 'loading', error: null });
+      try {
+        set({ trips: await api.listTrips(), status: 'ready' });
+      } catch (e) {
+        set({ status: 'error', error: errMsg(e) });
+      }
+    },
 
-      deleteTrip: (id) =>
-        set((s) => ({
-          trips: s.trips.filter((t) => t.id !== id),
-          activeTripId: s.activeTripId === id ? null : s.activeTripId,
-        })),
+    createTrip: async (input) => {
+      try {
+        const trip = await api.createTrip(input);
+        set({ activeTrip: trip, activeTripId: trip.id });
+        await get().loadTrips();
+        return trip.id;
+      } catch (e) {
+        set({ error: errMsg(e) });
+        return null;
+      }
+    },
 
-      renameTrip: (id, title) =>
+    deleteTrip: async (id) => {
+      try {
+        await api.deleteTrip(id);
+        const wasActive = get().activeTripId === id;
+        if (wasActive) set({ activeTrip: null, activeTripId: null });
+        await get().loadTrips();
+      } catch (e) {
+        set({ error: errMsg(e) });
+      }
+    },
+
+    renameTrip: async (id, title) => {
+      try {
+        const trip = await api.renameTrip(id, title);
         set((s) => ({
           trips: s.trips.map((t) => (t.id === id ? { ...t, title } : t)),
-        })),
-
-      selectTrip: (id) => set({ activeTripId: id }),
-
-      addItem: (date, input) => {
-        const item: ScheduleItem = {
-          id: newId(),
-          time: input.time,
-          locationName: input.locationName,
-          displayName: input.displayName,
-          category: input.category,
-          notes: input.notes?.trim() || '상세 메모가 아직 작성되지 않았습니다.',
-          x: input.x,
-          y: input.y,
-        };
-        set((s) => mapActiveDayItems(s, date, (items) => [...items, item]));
-        return item.id;
-      },
-
-      updateItem: (date, itemId, patch) =>
-        set((s) =>
-          mapActiveDayItems(s, date, (items) =>
-            items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
-          ),
-        ),
-
-      removeItem: (date, itemId) =>
-        set((s) =>
-          mapActiveDayItems(s, date, (items) => items.filter((it) => it.id !== itemId)),
-        ),
-    }),
-    {
-      name: 'plan-for-j/trips',
-      version: 1,
-      // v0(구버전: title 사용, displayName 없음) → v1 정규화
-      migrate: (persisted, version) => {
-        const state = persisted as { trips?: Trip[]; activeTripId?: string | null };
-        if (version < 1 && Array.isArray(state.trips)) {
-          state.trips = state.trips.map((trip) => ({
-            ...trip,
-            days: trip.days.map((day) => ({
-              ...day,
-              items: day.items.map((it) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const raw = it as any;
-                const item: ScheduleItem = {
-                  id: raw.id,
-                  time: raw.time,
-                  locationName: raw.locationName ?? raw.title ?? '',
-                  displayName: raw.displayName ?? '',
-                  category: raw.category,
-                  notes: raw.notes ?? '',
-                  x: raw.x ?? 250,
-                  y: raw.y ?? 250,
-                };
-                if (raw.location) item.location = raw.location;
-                return item;
-              }),
-            })),
-          }));
-        }
-        return state as TripState;
-      },
+          activeTrip: s.activeTripId === id ? trip : s.activeTrip,
+        }));
+      } catch (e) {
+        set({ error: errMsg(e) });
+      }
     },
-  ),
-);
 
-/** 현재 활성 여행묶음 (없으면 null) */
-export const selectActiveTrip = (s: TripState): Trip | null =>
-  s.trips.find((t) => t.id === s.activeTripId) ?? null;
+    selectTrip: async (id) => {
+      if (!id) {
+        set({ activeTrip: null, activeTripId: null });
+        return;
+      }
+      set({ status: 'loading', error: null });
+      try {
+        const trip = await api.getTrip(id);
+        set({ activeTrip: trip, activeTripId: id, status: 'ready' });
+      } catch (e) {
+        set({ status: 'error', error: errMsg(e) });
+      }
+    },
+
+    addItem: async (date, input) => {
+      const id = get().activeTripId;
+      if (!id) return null;
+      try {
+        const item = await api.addItem(id, date, toPayload(input));
+        await refreshActive();
+        return item.id;
+      } catch (e) {
+        set({ error: errMsg(e) });
+        return null;
+      }
+    },
+
+    updateItem: async (date, itemId, input) => {
+      const id = get().activeTripId;
+      if (!id) return;
+      try {
+        await api.updateItem(id, date, itemId, toPayload(input));
+        await refreshActive();
+      } catch (e) {
+        set({ error: errMsg(e) });
+      }
+    },
+
+    removeItem: async (date, itemId) => {
+      const id = get().activeTripId;
+      if (!id) return;
+      try {
+        await api.deleteItem(id, date, itemId);
+        await refreshActive();
+      } catch (e) {
+        set({ error: errMsg(e) });
+      }
+    },
+  };
+});

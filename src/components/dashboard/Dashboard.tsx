@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useTripStore, selectActiveTrip } from '../../store/tripStore';
+import { useTripStore } from '../../store/tripStore';
 import { CATEGORIES, SEOUL_LANDMARKS } from '../../lib/categories';
 import { todayISO } from '../../lib/dates';
 import { scheduleName, type ScheduleItem } from '../../types';
@@ -40,7 +40,7 @@ const sortByTime = <T extends { time: string }>(list: T[]): T[] =>
 const randomCoord = () => Math.floor(Math.random() * 300) + 100;
 
 export function Dashboard() {
-  const trip = useTripStore(selectActiveTrip);
+  const trip = useTripStore((s) => s.activeTrip);
   const selectTrip = useTripStore((s) => s.selectTrip);
   const renameTrip = useTripStore((s) => s.renameTrip);
   const addItem = useTripStore((s) => s.addItem);
@@ -120,7 +120,7 @@ export function Dashboard() {
     setForm({ ...BLANK_FORM, x: randomCoord(), y: randomCoord() });
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.locationName.trim()) {
       alert('장소명을 입력해주세요!');
@@ -136,19 +136,21 @@ export function Dashboard() {
       y: form.y,
     };
     if (editorMode === 'add') {
-      const id = addItem(activeDay.date, payload);
-      setActiveScheduleId(id);
-      setEditorMode('view');
+      const id = await addItem(activeDay.date, payload);
+      if (id) {
+        setActiveScheduleId(id);
+        setEditorMode('view');
+      }
     } else if (activeScheduleId) {
-      updateItem(activeDay.date, activeScheduleId, payload);
+      await updateItem(activeDay.date, activeScheduleId, payload);
       setEditorMode('view');
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!activeScheduleId) return;
     const remaining = sortByTime(activeDay.items.filter((i) => i.id !== activeScheduleId));
-    removeItem(activeDay.date, activeScheduleId);
+    await removeItem(activeDay.date, activeScheduleId);
     if (remaining[0]) {
       setActiveScheduleId(remaining[0].id);
       setEditorMode('view');

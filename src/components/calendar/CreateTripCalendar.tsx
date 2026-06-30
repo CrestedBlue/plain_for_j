@@ -48,10 +48,14 @@ export function CreateTripCalendar({ onCancel, onCreated }: Props) {
       ? '오는 날을 선택하세요'
       : `${nights}박 ${nights + 1}일 일정`;
 
-  const handleCreate = () => {
-    if (!start || !end) return;
-    createTrip({ title: title.trim() || defaultTitle, startDate: start, endDate: end });
-    onCreated?.();
+  const [saving, setSaving] = useState(false);
+
+  const handleCreate = async () => {
+    if (!start || !end || saving) return;
+    setSaving(true);
+    const id = await createTrip({ title: title.trim() || defaultTitle, startDate: start, endDate: end });
+    setSaving(false);
+    if (id) onCreated?.();
   };
 
   return (
@@ -133,14 +137,14 @@ export function CreateTripCalendar({ onCancel, onCreated }: Props) {
 
             <button
               onClick={handleCreate}
-              disabled={!ready}
+              disabled={!ready || saving}
               className={`shrink-0 py-2.5 px-4 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-1.5 transition ${
-                ready
+                ready && !saving
                   ? 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/30'
                   : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
               }`}
             >
-              여행 만들기
+              {saving ? '만드는 중…' : '여행 만들기'}
               <Icon name="arrow-right" className="w-4 h-4" />
             </button>
           </div>

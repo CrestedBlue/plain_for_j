@@ -1,4 +1,5 @@
 import { useTripStore } from '../../store/tripStore';
+import { eachDateInRange } from '../../lib/dates';
 import { Icon } from '../icons/Icon';
 
 type Props = {
@@ -50,7 +51,9 @@ export function TripList({ onNewTrip }: Props) {
               <button onClick={() => selectTrip(t.id)} className="w-full text-left p-6 space-y-2">
                 <div className="flex items-center gap-2 text-indigo-400">
                   <Icon name="map-pin" className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">{t.days.length} Days</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {eachDateInRange(t.startDate, t.endDate).length} Days
+                  </span>
                 </div>
                 <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
                   {t.title}
