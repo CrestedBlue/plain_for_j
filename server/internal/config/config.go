@@ -23,9 +23,10 @@ type DBConfig struct {
 
 // DSN은 go-sql-driver/mysql 형식의 접속 문자열을 만든다.
 func (d DBConfig) DSN() string {
-	// parseTime: DATE/TIMESTAMP를 time.Time으로, charset/loc은 한글·시간대 안전하게.
+	// parseTime: DATE/TIMESTAMP를 time.Time으로. loc=UTC로 고정 — DATE 컬럼이
+	// 자정 기준 그대로 매칭되도록(Local이면 오프셋만큼 밀려 날짜 비교가 깨짐).
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4&loc=Local",
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4&loc=UTC",
 		d.User, d.Password, d.Host, d.Port, d.Name,
 	)
 }
