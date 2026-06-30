@@ -7,28 +7,391 @@ package dbgen
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
-const countTrips = `-- name: CountTrips :one
-SELECT COUNT(*) AS total FROM trips
+const createDay = `-- name: CreateDay :exec
+INSERT INTO days (id, trip_id, date) VALUES (?, ?, ?)
 `
 
-func (q *Queries) CountTrips(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countTrips)
-	var total int64
-	err := row.Scan(&total)
-	return total, err
+type CreateDayParams struct {
+	ID     string    `json:"id"`
+	TripID string    `json:"trip_id"`
+	Date   time.Time `json:"date"`
 }
 
-const healthCheck = `-- name: HealthCheck :one
+func (q *Queries) CreateDay(ctx context.Context, arg CreateDayParams) error {
+	_, err := q.db.ExecContext(ctx, createDay, arg.ID, arg.TripID, arg.Date)
+	return err
+}
 
-SELECT 1 AS ok
+const createItem = `-- name: CreateItem :exec
+INSERT INTO schedule_items
+  (id, day_id, time, location_name, display_name, category, notes, x, y, geo_name, lat, lng)
+VALUES
+  (?, ?, ?, ?, ?,
+   ?, ?, ?, ?, ?, ?, ?)
 `
 
-// P0 시작 쿼리 (sqlc 파이프라인 검증용). CRUD는 P1에서 확장.
-func (q *Queries) HealthCheck(ctx context.Context) (int32, error) {
-	row := q.db.QueryRowContext(ctx, healthCheck)
-	var ok int32
-	err := row.Scan(&ok)
-	return ok, err
+type CreateItemParams struct {
+	ID           string                `json:"id"`
+	DayID        string                `json:"day_id"`
+	Time         string                `json:"time"`
+	LocationName string                `json:"location_name"`
+	DisplayName  string                `json:"display_name"`
+	Category     ScheduleItemsCategory `json:"category"`
+	Notes        string                `json:"notes"`
+	X            int32                 `json:"x"`
+	Y            int32                 `json:"y"`
+	GeoName      sql.NullString        `json:"geo_name"`
+	Lat          sql.NullFloat64       `json:"lat"`
+	Lng          sql.NullFloat64       `json:"lng"`
+}
+
+func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) error {
+	_, err := q.db.ExecContext(ctx, createItem,
+		arg.ID,
+		arg.DayID,
+		arg.Time,
+		arg.LocationName,
+		arg.DisplayName,
+		arg.Category,
+		arg.Notes,
+		arg.X,
+		arg.Y,
+		arg.GeoName,
+		arg.Lat,
+		arg.Lng,
+	)
+	return err
+}
+
+const createTrip = `-- name: CreateTrip :exec
+INSERT INTO trips (id, owner_user_id, title, start_date, end_date)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type CreateTripParams struct {
+	ID          string         `json:"id"`
+	OwnerUserID sql.NullString `json:"owner_user_id"`
+	Title       string         `json:"title"`
+	StartDate   time.Time      `json:"start_date"`
+	EndDate     time.Time      `json:"end_date"`
+}
+
+func (q *Queries) CreateTrip(ctx context.Context, arg CreateTripParams) error {
+	_, err := q.db.ExecContext(ctx, createTrip,
+		arg.ID,
+		arg.OwnerUserID,
+		arg.Title,
+		arg.StartDate,
+		arg.EndDate,
+	)
+	return err
+}
+
+const deleteItem = `-- name: DeleteItem :exec
+DELETE FROM schedule_items WHERE id = ?
+`
+
+func (q *Queries) DeleteItem(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteItem, id)
+	return err
+}
+
+const deleteTrip = `-- name: DeleteTrip :exec
+DELETE FROM trips WHERE id = ?
+`
+
+func (q *Queries) DeleteTrip(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteTrip, id)
+	return err
+}
+
+const getDayByTripAndDate = `-- name: GetDayByTripAndDate :one
+SELECT id FROM days WHERE trip_id = ? AND date = ?
+`
+
+type GetDayByTripAndDateParams struct {
+	TripID string    `json:"trip_id"`
+	Date   time.Time `json:"date"`
+}
+
+func (q *Queries) GetDayByTripAndDate(ctx context.Context, arg GetDayByTripAndDateParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getDayByTripAndDate, arg.TripID, arg.Date)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getItem = `-- name: GetItem :one
+SELECT id, day_id, time, location_name, display_name, category, notes, x, y, geo_name, lat, lng
+FROM schedule_items
+WHERE id = ?
+`
+
+type GetItemRow struct {
+	ID           string                `json:"id"`
+	DayID        string                `json:"day_id"`
+	Time         string                `json:"time"`
+	LocationName string                `json:"location_name"`
+	DisplayName  string                `json:"display_name"`
+	Category     ScheduleItemsCategory `json:"category"`
+	Notes        string                `json:"notes"`
+	X            int32                 `json:"x"`
+	Y            int32                 `json:"y"`
+	GeoName      sql.NullString        `json:"geo_name"`
+	Lat          sql.NullFloat64       `json:"lat"`
+	Lng          sql.NullFloat64       `json:"lng"`
+}
+
+func (q *Queries) GetItem(ctx context.Context, id string) (GetItemRow, error) {
+	row := q.db.QueryRowContext(ctx, getItem, id)
+	var i GetItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.DayID,
+		&i.Time,
+		&i.LocationName,
+		&i.DisplayName,
+		&i.Category,
+		&i.Notes,
+		&i.X,
+		&i.Y,
+		&i.GeoName,
+		&i.Lat,
+		&i.Lng,
+	)
+	return i, err
+}
+
+const getTrip = `-- name: GetTrip :one
+SELECT id, title, start_date, end_date, created_at, updated_at
+FROM trips
+WHERE id = ?
+`
+
+type GetTripRow struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (q *Queries) GetTrip(ctx context.Context, id string) (GetTripRow, error) {
+	row := q.db.QueryRowContext(ctx, getTrip, id)
+	var i GetTripRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.StartDate,
+		&i.EndDate,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listDaysByTrip = `-- name: ListDaysByTrip :many
+SELECT id, date FROM days WHERE trip_id = ? ORDER BY date
+`
+
+type ListDaysByTripRow struct {
+	ID   string    `json:"id"`
+	Date time.Time `json:"date"`
+}
+
+func (q *Queries) ListDaysByTrip(ctx context.Context, tripID string) ([]ListDaysByTripRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDaysByTrip, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDaysByTripRow{}
+	for rows.Next() {
+		var i ListDaysByTripRow
+		if err := rows.Scan(&i.ID, &i.Date); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listItemsByTrip = `-- name: ListItemsByTrip :many
+SELECT i.id, d.date, i.day_id, i.time, i.location_name, i.display_name,
+       i.category, i.notes, i.x, i.y, i.geo_name, i.lat, i.lng
+FROM schedule_items i
+JOIN days d ON i.day_id = d.id
+WHERE d.trip_id = ?
+ORDER BY d.date, i.time
+`
+
+type ListItemsByTripRow struct {
+	ID           string                `json:"id"`
+	Date         time.Time             `json:"date"`
+	DayID        string                `json:"day_id"`
+	Time         string                `json:"time"`
+	LocationName string                `json:"location_name"`
+	DisplayName  string                `json:"display_name"`
+	Category     ScheduleItemsCategory `json:"category"`
+	Notes        string                `json:"notes"`
+	X            int32                 `json:"x"`
+	Y            int32                 `json:"y"`
+	GeoName      sql.NullString        `json:"geo_name"`
+	Lat          sql.NullFloat64       `json:"lat"`
+	Lng          sql.NullFloat64       `json:"lng"`
+}
+
+func (q *Queries) ListItemsByTrip(ctx context.Context, tripID string) ([]ListItemsByTripRow, error) {
+	rows, err := q.db.QueryContext(ctx, listItemsByTrip, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemsByTripRow{}
+	for rows.Next() {
+		var i ListItemsByTripRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Date,
+			&i.DayID,
+			&i.Time,
+			&i.LocationName,
+			&i.DisplayName,
+			&i.Category,
+			&i.Notes,
+			&i.X,
+			&i.Y,
+			&i.GeoName,
+			&i.Lat,
+			&i.Lng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrips = `-- name: ListTrips :many
+
+SELECT id, title, start_date, end_date, created_at, updated_at
+FROM trips
+ORDER BY created_at
+`
+
+type ListTripsRow struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Trip CRUD (P1). sqlc.arg로 명명 파라미터 사용.
+func (q *Queries) ListTrips(ctx context.Context) ([]ListTripsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTrips)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTripsRow{}
+	for rows.Next() {
+		var i ListTripsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.StartDate,
+			&i.EndDate,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateItem = `-- name: UpdateItem :exec
+UPDATE schedule_items SET
+  time = ?,
+  location_name = ?,
+  display_name = ?,
+  category = ?,
+  notes = ?,
+  x = ?,
+  y = ?,
+  geo_name = ?,
+  lat = ?,
+  lng = ?
+WHERE id = ?
+`
+
+type UpdateItemParams struct {
+	Time         string                `json:"time"`
+	LocationName string                `json:"location_name"`
+	DisplayName  string                `json:"display_name"`
+	Category     ScheduleItemsCategory `json:"category"`
+	Notes        string                `json:"notes"`
+	X            int32                 `json:"x"`
+	Y            int32                 `json:"y"`
+	GeoName      sql.NullString        `json:"geo_name"`
+	Lat          sql.NullFloat64       `json:"lat"`
+	Lng          sql.NullFloat64       `json:"lng"`
+	ID           string                `json:"id"`
+}
+
+func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) error {
+	_, err := q.db.ExecContext(ctx, updateItem,
+		arg.Time,
+		arg.LocationName,
+		arg.DisplayName,
+		arg.Category,
+		arg.Notes,
+		arg.X,
+		arg.Y,
+		arg.GeoName,
+		arg.Lat,
+		arg.Lng,
+		arg.ID,
+	)
+	return err
+}
+
+const updateTripTitle = `-- name: UpdateTripTitle :exec
+UPDATE trips SET title = ? WHERE id = ?
+`
+
+type UpdateTripTitleParams struct {
+	Title string `json:"title"`
+	ID    string `json:"id"`
+}
+
+func (q *Queries) UpdateTripTitle(ctx context.Context, arg UpdateTripTitleParams) error {
+	_, err := q.db.ExecContext(ctx, updateTripTitle, arg.Title, arg.ID)
+	return err
 }

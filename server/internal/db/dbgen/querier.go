@@ -9,9 +9,20 @@ import (
 )
 
 type Querier interface {
-	CountTrips(ctx context.Context) (int64, error)
-	// P0 시작 쿼리 (sqlc 파이프라인 검증용). CRUD는 P1에서 확장.
-	HealthCheck(ctx context.Context) (int32, error)
+	CreateDay(ctx context.Context, arg CreateDayParams) error
+	CreateItem(ctx context.Context, arg CreateItemParams) error
+	CreateTrip(ctx context.Context, arg CreateTripParams) error
+	DeleteItem(ctx context.Context, id string) error
+	DeleteTrip(ctx context.Context, id string) error
+	GetDayByTripAndDate(ctx context.Context, arg GetDayByTripAndDateParams) (string, error)
+	GetItem(ctx context.Context, id string) (GetItemRow, error)
+	GetTrip(ctx context.Context, id string) (GetTripRow, error)
+	ListDaysByTrip(ctx context.Context, tripID string) ([]ListDaysByTripRow, error)
+	ListItemsByTrip(ctx context.Context, tripID string) ([]ListItemsByTripRow, error)
+	// Trip CRUD (P1). sqlc.arg로 명명 파라미터 사용.
+	ListTrips(ctx context.Context) ([]ListTripsRow, error)
+	UpdateItem(ctx context.Context, arg UpdateItemParams) error
+	UpdateTripTitle(ctx context.Context, arg UpdateTripTitleParams) error
 }
 
 var _ Querier = (*Queries)(nil)
