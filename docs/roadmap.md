@@ -11,7 +11,7 @@
 | Phase | 내용 | 상태 |
 | --- | --- | --- |
 | **P0. 백엔드 스캐폴딩 + 스키마** | Go+gin, MySQL 커넥션, sqlc 설정, `users/trips/days/schedule_items` 스키마, `/api/health` | ✅ **완료** (2026-06-29) |
-| **P1. Trip CRUD API** | sqlc 쿼리 + service + gin 핸들러, trips·days·items CRUD, 응답봉투 통일 | ⬜ 예정 |
+| **P1. Trip CRUD API** | sqlc 쿼리 + service + gin 핸들러, trips·days·items CRUD, 응답봉투 통일 | ✅ **완료** (2026-06-29) |
 | **P2. 소셜 OAuth 인증** | 카카오/구글 OAuth → `users` upsert → JWT 쿠키, 미들웨어 보호, `/api/me` | ⬜ 예정 |
 | **P3. 네이버 검색 프록시** | `GET /api/places/search` 정규화, 프론트 `src/lib/places.ts` | ⬜ 예정 |
 | **P4. 프론트 데이터 계층 교체** | persist 제거 → `src/lib/api.ts`, localStorage→서버 1회 임포트 | ⬜ 예정 |

@@ -6,16 +6,23 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/crestedblue/plan_for_j/server/internal/trip"
 )
 
 // Server는 핸들러가 의존하는 자원을 들고 있다.
 type Server struct {
-	db *sql.DB
+	db    *sql.DB
+	trips *trip.Service
 }
 
 // NewServer는 의존성을 주입해 Server를 만든다. db는 nil일 수 있다(미연결 모드).
 func NewServer(db *sql.DB) *Server {
-	return &Server{db: db}
+	s := &Server{db: db}
+	if db != nil {
+		s.trips = trip.NewService(db)
+	}
+	return s
 }
 
 // Router는 /api 라우트를 등록한 gin 엔진을 반환한다.
@@ -26,6 +33,9 @@ func (s *Server) Router() *gin.Engine {
 	{
 		api.GET("/health", s.handleHealth)
 		api.GET("/health/db", s.handleHealthDB)
+		if s.trips != nil {
+			s.registerTripRoutes(api)
+		}
 	}
 	return r
 }
