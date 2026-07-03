@@ -28,6 +28,13 @@
 - **카카오 파일 삭제**: `KakaoMap.tsx`, `kakaoLoader.ts`, `kakao.d.ts`, `VITE_KAKAO_MAP_KEY`. `MapPanel`은 항상 SVG.
 - **문서 분리**: `plan.md`(허브) + requirements/design/architecture/roadmap/security/features/history.
 
+### 2026-06-30 — 프론트–백엔드 연동 (P4 핵심)
+- **tripStore를 localStorage → 서버(MySQL) API로 전환**: `src/lib/api.ts` fetch 클라이언트 + Vite `/api` 프록시. 목록(요약)/활성여행(전체) 분리, 액션 async화, 서버상태만 캐시.
+- App(최초 로드+로딩/에러 화면)·TripList(요약서 일수 계산)·Calendar/Dashboard(비동기 CRUD) 연동.
+- **버그 수정**: 캘린더 여행 이름이 키 입력마다 PUT → **캘린더를 벗어날 때 1회 저장**.
+- P1(백엔드 CRUD) 커밋을 커밋 스타일에 맞춰 7개로 재분할.
+- **보류**: localStorage→서버 1회 임포트(기존 로컬 데이터 이전)는 YAGNI로 스킵. 남은 것 — P2 인증, P3 네이버 검색.
+
 ## 확정 결정표
 
 | 항목 | 결정 | 결정일 |
