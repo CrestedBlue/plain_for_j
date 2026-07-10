@@ -28,10 +28,10 @@ func (q *Queries) CreateDay(ctx context.Context, arg CreateDayParams) error {
 
 const createItem = `-- name: CreateItem :exec
 INSERT INTO schedule_items
-  (id, day_id, time, location_name, display_name, category, notes, x, y, geo_name, lat, lng)
+  (id, day_id, time, location_name, display_name, category, notes, geo_name, lat, lng)
 VALUES
   (?, ?, ?, ?, ?,
-   ?, ?, ?, ?, ?, ?, ?)
+   ?, ?, ?, ?, ?)
 `
 
 type CreateItemParams struct {
@@ -42,8 +42,6 @@ type CreateItemParams struct {
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
 	Notes        string                `json:"notes"`
-	X            int32                 `json:"x"`
-	Y            int32                 `json:"y"`
 	GeoName      sql.NullString        `json:"geo_name"`
 	Lat          sql.NullFloat64       `json:"lat"`
 	Lng          sql.NullFloat64       `json:"lng"`
@@ -58,8 +56,6 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) error {
 		arg.DisplayName,
 		arg.Category,
 		arg.Notes,
-		arg.X,
-		arg.Y,
 		arg.GeoName,
 		arg.Lat,
 		arg.Lng,
@@ -126,7 +122,7 @@ func (q *Queries) GetDayByTripAndDate(ctx context.Context, arg GetDayByTripAndDa
 }
 
 const getItem = `-- name: GetItem :one
-SELECT id, day_id, time, location_name, display_name, category, notes, x, y, geo_name, lat, lng
+SELECT id, day_id, time, location_name, display_name, category, notes, geo_name, lat, lng
 FROM schedule_items
 WHERE id = ?
 `
@@ -139,8 +135,6 @@ type GetItemRow struct {
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
 	Notes        string                `json:"notes"`
-	X            int32                 `json:"x"`
-	Y            int32                 `json:"y"`
 	GeoName      sql.NullString        `json:"geo_name"`
 	Lat          sql.NullFloat64       `json:"lat"`
 	Lng          sql.NullFloat64       `json:"lng"`
@@ -157,8 +151,6 @@ func (q *Queries) GetItem(ctx context.Context, id string) (GetItemRow, error) {
 		&i.DisplayName,
 		&i.Category,
 		&i.Notes,
-		&i.X,
-		&i.Y,
 		&i.GeoName,
 		&i.Lat,
 		&i.Lng,
@@ -229,7 +221,7 @@ func (q *Queries) ListDaysByTrip(ctx context.Context, tripID string) ([]ListDays
 
 const listItemsByTrip = `-- name: ListItemsByTrip :many
 SELECT i.id, d.date, i.day_id, i.time, i.location_name, i.display_name,
-       i.category, i.notes, i.x, i.y, i.geo_name, i.lat, i.lng
+       i.category, i.notes, i.geo_name, i.lat, i.lng
 FROM schedule_items i
 JOIN days d ON i.day_id = d.id
 WHERE d.trip_id = ?
@@ -245,8 +237,6 @@ type ListItemsByTripRow struct {
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
 	Notes        string                `json:"notes"`
-	X            int32                 `json:"x"`
-	Y            int32                 `json:"y"`
 	GeoName      sql.NullString        `json:"geo_name"`
 	Lat          sql.NullFloat64       `json:"lat"`
 	Lng          sql.NullFloat64       `json:"lng"`
@@ -270,8 +260,6 @@ func (q *Queries) ListItemsByTrip(ctx context.Context, tripID string) ([]ListIte
 			&i.DisplayName,
 			&i.Category,
 			&i.Notes,
-			&i.X,
-			&i.Y,
 			&i.GeoName,
 			&i.Lat,
 			&i.Lng,
@@ -343,8 +331,6 @@ UPDATE schedule_items SET
   display_name = ?,
   category = ?,
   notes = ?,
-  x = ?,
-  y = ?,
   geo_name = ?,
   lat = ?,
   lng = ?
@@ -357,8 +343,6 @@ type UpdateItemParams struct {
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
 	Notes        string                `json:"notes"`
-	X            int32                 `json:"x"`
-	Y            int32                 `json:"y"`
 	GeoName      sql.NullString        `json:"geo_name"`
 	Lat          sql.NullFloat64       `json:"lat"`
 	Lng          sql.NullFloat64       `json:"lng"`
@@ -372,8 +356,6 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) error {
 		arg.DisplayName,
 		arg.Category,
 		arg.Notes,
-		arg.X,
-		arg.Y,
 		arg.GeoName,
 		arg.Lat,
 		arg.Lng,

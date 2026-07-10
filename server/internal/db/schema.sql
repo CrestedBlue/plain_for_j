@@ -43,10 +43,8 @@ CREATE TABLE schedule_items (
   display_name  VARCHAR(200) NOT NULL DEFAULT '', -- 비우면 location_name 사용
   category      ENUM('sightseeing','restaurant','cafe','accommodation','shopping') NOT NULL,
   notes         TEXT         NOT NULL,
-  x             INT          NOT NULL DEFAULT 250, -- SVG 폴백 좌표(0~500)
-  y             INT          NOT NULL DEFAULT 250,
   geo_name      VARCHAR(200) NULL,                 -- 네이버 검색 장소명/주소
-  lat           DOUBLE       NULL,                 -- 실지도용 위경도(미래 대비 적재)
+  lat           DOUBLE       NULL,                 -- 실지도용 위경도
   lng           DOUBLE       NULL,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

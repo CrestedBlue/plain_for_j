@@ -115,7 +115,7 @@ func (s *Service) GetTrip(ctx context.Context, id string) (*Trip, error) {
 		key := r.Date.Format(dateLayout)
 		itemsByDate[key] = append(itemsByDate[key], toItemDTO(
 			r.ID, r.Time, r.LocationName, r.DisplayName, r.Category,
-			r.Notes, r.X, r.Y, r.GeoName, r.Lat, r.Lng,
+			r.Notes, r.GeoName, r.Lat, r.Lng,
 		))
 	}
 
@@ -177,8 +177,6 @@ func (s *Service) AddItem(ctx context.Context, tripID, date string, in ItemInput
 		DisplayName:  in.DisplayName,
 		Category:     dbgen.ScheduleItemsCategory(in.Category),
 		Notes:        in.Notes,
-		X:            in.X,
-		Y:            in.Y,
 		GeoName:      geoName,
 		Lat:          lat,
 		Lng:          lng,
@@ -205,8 +203,6 @@ func (s *Service) UpdateItem(ctx context.Context, tripID, date, itemID string, i
 		DisplayName:  in.DisplayName,
 		Category:     dbgen.ScheduleItemsCategory(in.Category),
 		Notes:        in.Notes,
-		X:            in.X,
-		Y:            in.Y,
 		GeoName:      geoName,
 		Lat:          lat,
 		Lng:          lng,
@@ -249,14 +245,14 @@ func (s *Service) getItemDTO(ctx context.Context, id string) (*ScheduleItem, err
 	if err != nil {
 		return nil, err
 	}
-	item := toItemDTO(r.ID, r.Time, r.LocationName, r.DisplayName, r.Category, r.Notes, r.X, r.Y, r.GeoName, r.Lat, r.Lng)
+	item := toItemDTO(r.ID, r.Time, r.LocationName, r.DisplayName, r.Category, r.Notes, r.GeoName, r.Lat, r.Lng)
 	return &item, nil
 }
 
 func toItemDTO(
 	id, t, locName, dispName string,
 	cat dbgen.ScheduleItemsCategory,
-	notes string, x, y int32,
+	notes string,
 	geoName sql.NullString, lat, lng sql.NullFloat64,
 ) ScheduleItem {
 	item := ScheduleItem{
@@ -266,8 +262,6 @@ func toItemDTO(
 		DisplayName:  dispName,
 		Category:     string(cat),
 		Notes:        notes,
-		X:            x,
-		Y:            y,
 	}
 	if lat.Valid && lng.Valid {
 		name := locName

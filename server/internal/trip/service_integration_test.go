@@ -48,8 +48,7 @@ func TestTripRoundTrip(t *testing.T) {
 		LocationName: "경복궁",
 		Category:     "sightseeing",
 		Notes:        "수문장 교대식",
-		X:            250, Y: 140,
-		Location: &GeoLocation{Name: "경복궁", Lat: 37.5796, Lng: 126.977},
+		Location:     &GeoLocation{Name: "경복궁", Lat: 37.5796, Lng: 126.977},
 	})
 	if err != nil {
 		t.Fatalf("AddItem: %v", err)

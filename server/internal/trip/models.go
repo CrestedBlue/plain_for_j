@@ -18,8 +18,6 @@ type ScheduleItem struct {
 	DisplayName  string       `json:"displayName"`
 	Category     string       `json:"category"`
 	Notes        string       `json:"notes"`
-	X            int32        `json:"x"`
-	Y            int32        `json:"y"`
 	Location     *GeoLocation `json:"location,omitempty"`
 }
 
@@ -67,7 +65,5 @@ type ItemInput struct {
 	DisplayName  string       `json:"displayName"`
 	Category     string       `json:"category" binding:"required,oneof=sightseeing restaurant cafe accommodation shopping"`
 	Notes        string       `json:"notes"`
-	X            int32        `json:"x"`
-	Y            int32        `json:"y"`
 	Location     *GeoLocation `json:"location"`
 }

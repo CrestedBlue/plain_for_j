@@ -70,8 +70,6 @@ type ScheduleItem struct {
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
 	Notes        string                `json:"notes"`
-	X            int32                 `json:"x"`
-	Y            int32                 `json:"y"`
 	GeoName      sql.NullString        `json:"geo_name"`
 	Lat          sql.NullFloat64       `json:"lat"`
 	Lng          sql.NullFloat64       `json:"lng"`
