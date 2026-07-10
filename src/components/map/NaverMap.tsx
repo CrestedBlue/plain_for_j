@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES } from '../../lib/categories';
 import { loadNaverMap } from '../../lib/naverMapLoader';
-import type { ScheduleItem } from '../../types';
+import { useTheme } from '../../lib/theme';
+import { scheduleName, type ScheduleItem } from '../../types';
 
 type Props = {
   clientId: string;
@@ -24,6 +25,8 @@ type Naver = {
     LatLngBounds: new (sw: unknown, ne: unknown) => NaverBoundsInstance;
     Map: new (el: HTMLElement, opts: unknown) => NaverMapInstance;
     Marker: new (opts: unknown) => NaverMarkerInstance;
+    Polyline: new (opts: unknown) => NaverPolylineInstance;
+    InfoWindow: new (opts: unknown) => NaverInfoWindowInstance;
     Point: new (x: number, y: number) => unknown;
     Event: {
       addListener: (target: unknown, event: string, handler: (e: unknown) => void) => unknown;
@@ -64,6 +67,12 @@ type NaverMarkerInstance = {
   getPosition: () => unknown;
 };
 type NaverBoundsInstance = { extend: (latlng: unknown) => void };
+type NaverPolylineInstance = { setPath: (path: unknown[]) => void; setMap: (map: NaverMapInstance | null) => void };
+type NaverInfoWindowInstance = {
+  setContent: (html: string) => void;
+  open: (map: NaverMapInstance, anchor: unknown) => void;
+  close: () => void;
+};
 type Coord = { x: number; y: number };
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 } as const;
@@ -98,6 +107,7 @@ function withLocation(schedules: ScheduleItem[]): ScheduleItem[] {
  *
  * - 위경도가 있는 일정만 지도에 표시(없으면 렌더 스킵).
  * - `dayKey` 변화 시 그날 일정 전체가 보이게 fitBounds, `activeScheduleId` 변화 시 해당 마커로 panTo.
+ * - 일정 순서를 잇는 경로선(Polyline), 마커 클릭 시 InfoWindow, 앱 다크/라이트 테마 동기화 포함.
  * - 지도 클릭 시 lat/lng을 부모로 넘김.
  */
 export function NaverMap({
@@ -115,9 +125,12 @@ export function NaverMap({
   const naverRef = useRef<Naver | null>(null);
   const markersRef = useRef<Record<string, NaverMarkerInstance>>({});
   const newMarkerRef = useRef<NaverMarkerInstance | null>(null);
+  const routeRef = useRef<NaverPolylineInstance | null>(null);
+  const infoWindowRef = useRef<NaverInfoWindowInstance | null>(null);
   const clickListenerRef = useRef<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const { theme } = useTheme();
 
   // SDK 로드 + 지도 생성 (한 번만).
   useEffect(() => {
@@ -134,7 +147,9 @@ export function NaverMap({
           zoomControlOptions: { position: naver.maps.Position.RIGHT_TOP },
         });
         mapRef.current = map;
+        infoWindowRef.current = new naver.maps.InfoWindow({ content: '', borderWidth: 0, backgroundColor: 'transparent' });
         clickListenerRef.current = naver.maps.Event.addListener(map, 'click', (raw) => {
+          infoWindowRef.current?.close();
           const e = raw as { coord: Coord };
           // 네이버 지도: coord.x = 경도(lng), coord.y = 위도(lat)
           const lat = e.coord.y;
@@ -178,13 +193,17 @@ export function NaverMap({
       markersRef.current = {};
       newMarkerRef.current?.setMap(null);
       newMarkerRef.current = null;
+      routeRef.current?.setMap(null);
+      routeRef.current = null;
+      infoWindowRef.current?.close();
+      infoWindowRef.current = null;
       mapRef.current = null;
       naverRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  // 일정 마커 동기화.
+  // 일정 마커 동기화 + 클릭 시 InfoWindow.
   useEffect(() => {
     const map = mapRef.current;
     const naver = naverRef.current;
@@ -210,7 +229,18 @@ export function NaverMap({
         existing.setIcon(icon);
       } else {
         const marker = new naver.maps.Marker({ position: pos, map, icon });
-        naver.maps.Event.addListener(marker, 'click', () => onPinClick(item.id));
+        naver.maps.Event.addListener(marker, 'click', () => {
+          onPinClick(item.id);
+          const cat = CATEGORIES[item.category];
+          const iw = infoWindowRef.current;
+          if (!iw) return;
+          iw.setContent(`
+            <div style="padding:8px 12px;border-radius:10px;background:#111827;color:#fff;font-size:12px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:120px">
+              <div style="font-weight:700;font-size:13px">${scheduleName(item)}</div>
+              <div style="opacity:.75;margin-top:2px">${cat?.label ?? '기타'} · ${item.time}</div>
+            </div>`);
+          iw.open(map, marker);
+        });
         markersRef.current[item.id] = marker;
       }
     });
@@ -223,6 +253,34 @@ export function NaverMap({
       }
     });
   }, [schedules, activeScheduleId, ready, onPinClick]);
+
+  // 일정 순서를 잇는 경로선.
+  useEffect(() => {
+    const map = mapRef.current;
+    const naver = naverRef.current;
+    if (!ready || !map || !naver) return;
+
+    const path = withLocation(schedules).map(
+      (item) => new naver.maps.LatLng(item.location!.lat, item.location!.lng),
+    );
+    if (path.length < 2) {
+      routeRef.current?.setMap(null);
+      routeRef.current = null;
+      return;
+    }
+    if (routeRef.current) {
+      routeRef.current.setPath(path);
+    } else {
+      routeRef.current = new naver.maps.Polyline({
+        map,
+        path,
+        strokeColor: '#6366f1',
+        strokeOpacity: 0.75,
+        strokeWeight: 4,
+        strokeStyle: 'shortdash',
+      });
+    }
+  }, [schedules, ready]);
 
   // dayKey 변화 시 그날 일정 전체가 보이도록 fitBounds.
   useEffect(() => {
@@ -285,7 +343,12 @@ export function NaverMap({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full" />
+      {/*
+        네이버 지도는 커스텀 다크 타일 스타일(NCP 유료 커스텀 스타일 ID)이 없으면 항상 라이트 타일만
+        내려준다. CSS invert+hue-rotate는 타일을 다크 톤으로 근사 반전시키는 표준 트릭 —
+        마커는 이미 채도 높은 색이라 반전 후에도 색상이 크게 어긋나지 않는다.
+      */}
+      <div ref={containerRef} className={`w-full h-full ${theme === 'dark' ? 'naver-map-dark' : ''}`} />
       {!ready && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-100/70 dark:bg-slate-950/60 text-slate-600 dark:text-slate-400 text-xs">
           지도 불러오는 중…
@@ -296,12 +359,14 @@ export function NaverMap({
           {error}
         </div>
       )}
-      {/* 활성 마커 펄스 애니메이션 keyframes (컴포넌트 로컬) */}
+      {/* 활성 마커 펄스 애니메이션 + 다크 테마 타일 반전(위 주석 참조) */}
       <style>{`
         @keyframes naver-pin-pulse {
           0% { transform: translate(-50%,-50%) scale(0.6); opacity: 0.7; }
           100% { transform: translate(-50%,-50%) scale(1.4); opacity: 0; }
         }
+        .naver-map-dark { filter: invert(1) hue-rotate(180deg); }
+        .naver-map-dark img { filter: invert(1) hue-rotate(180deg); }
       `}</style>
     </div>
   );
