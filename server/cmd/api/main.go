@@ -9,6 +9,7 @@ import (
 	"github.com/crestedblue/plan_for_j/server/internal/config"
 	"github.com/crestedblue/plan_for_j/server/internal/db"
 	httpapi "github.com/crestedblue/plan_for_j/server/internal/http"
+	"github.com/crestedblue/plan_for_j/server/internal/places"
 )
 
 func main() {
@@ -27,6 +28,16 @@ func main() {
 	}
 
 	srv := httpapi.NewServer(pool)
+
+	// 네이버 지역검색 credentials가 있으면 places 라우트 활성.
+	naver := places.NewNaverClient(cfg.Naver.ClientID, cfg.Naver.ClientSecret)
+	if naver.Configured() {
+		srv.SetPlaces(naver)
+		log.Printf("[info] Naver 지역검색 활성화")
+	} else {
+		log.Printf("[warn] NAVER_SEARCH_CLIENT_ID/SECRET 미설정 → /api/places/search 비활성")
+	}
+
 	addr := ":" + cfg.AppPort
 	log.Printf("[info] listening on %s", addr)
 	if err := srv.Router().Run(addr); err != nil {

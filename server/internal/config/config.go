@@ -10,6 +10,7 @@ import (
 type Config struct {
 	AppPort string
 	DB      DBConfig
+	Naver   NaverConfig
 }
 
 // DBConfig는 MySQL 접속 정보다.
@@ -19,6 +20,13 @@ type DBConfig struct {
 	User     string
 	Password string
 	Name     string
+}
+
+// NaverConfig는 네이버 지역검색 API credentials.
+// 비어 있으면 /api/places/search 라우트는 비활성화된다(외부 노출 금지 — 서버 전용).
+type NaverConfig struct {
+	ClientID     string
+	ClientSecret string
 }
 
 // DSN은 go-sql-driver/mysql 형식의 접속 문자열을 만든다.
@@ -41,6 +49,10 @@ func Load() Config {
 			User:     env("DB_USER", "planforj"),
 			Password: env("DB_PASSWORD", "planforj"),
 			Name:     env("DB_NAME", "planforj"),
+		},
+		Naver: NaverConfig{
+			ClientID:     env("NAVER_SEARCH_CLIENT_ID", ""),
+			ClientSecret: env("NAVER_SEARCH_CLIENT_SECRET", ""),
 		},
 	}
 }

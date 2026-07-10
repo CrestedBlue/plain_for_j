@@ -2,11 +2,13 @@
 
 > 상위 인덱스: [../plan.md](../plan.md) · 관련: [../architecture.md](../architecture.md) · [../security.md](../security.md)
 
-## 현황 (P0 완료)
+## 현황 (P0·P1·P3 완료)
 
 - Go + gin 서버, `database/sql` + go-sql-driver/mysql 커넥션 풀.
 - sqlc 파이프라인(`server/internal/db/schema.sql` + `query.sql` → `dbgen/`).
 - `/api/health`(프로세스), `/api/health/db`(DB ping). 응답 봉투 `{success,data,error}`.
+- Trip/일정 CRUD 라우트 전체(`/api/trips`, `/api/trips/{id}/days/{date}/items`).
+- **`/api/places/search` (P3)**: 네이버 지역검색 어댑터(`internal/places/naver.go`) — `NAVER_SEARCH_CLIENT_ID/SECRET` 있을 때만 라우트 활성. `<b>` 태그 스트립·mapx/mapy(경도/위도 × 10^7) 파싱·카테고리 5종 매핑·한국 위경도 범위 검사. 라이브 호출은 credentials 확보 후 검증 예정.
 - 로컬 MySQL: `deploy/docker-compose.yml`(호스트 3307), 기동 시 스키마 자동 적용.
 
 ## API 설계 (예정)
@@ -21,9 +23,12 @@
 - 미들웨어로 `/api/trips*` 보호. `GET /api/me`. provider = `kakao` | `google`.
 - 상세 보안: [../security.md](../security.md).
 
-### 네이버 검색 프록시 (P3)
-- `GET /api/places/search?q=` → 네이버 지역검색(client_id/secret 서버) 호출 → `{name,address,lat,lng,category}` 정규화.
-- ⚠️ 네이버 지역검색 **1회 최대 5건**. 프론트 `src/lib/places.ts`가 소비.
+### 네이버 검색 프록시 (P3) — 코드 완료
+- `GET /api/places/search?q=` → 네이버 지역검색(client_id/secret 서버) 호출 → `{name,address,lat,lng,category,categoryRaw}` 정규화.
+- 좌표계: mapx/mapy(경도/위도 × 10^7 정수 문자열) → float. 한국 범위(경도 100~140, 위도 30~45) 밖은 0/0 반환.
+- 카테고리 매핑(우선순위): 숙박 → 카페 → 음식/식당 → 쇼핑 → 기본(sightseeing).
+- ⚠️ 네이버 지역검색 **1회 최대 5건** — `display=5` 하드코딩. 프론트 `src/lib/places.ts`가 소비하고 `ScheduleEditor` 인라인 검색창이 표시.
+- credentials 미설정 시 라우트 자체를 등록하지 않음(경로 404). 라이브 호출 검증은 키 확보 후.
 
 ### 댓글/읽음 (F6, 인증 후)
 - `comments { id, item_id(FK), author_user_id(FK users), text, created_at }`
