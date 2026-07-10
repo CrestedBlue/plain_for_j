@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { CATEGORIES } from '../../lib/categories';
 import { searchPlaces, type PlaceResult } from '../../lib/places';
 
 type Props = {
@@ -126,7 +125,6 @@ export function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder,
           className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"
         >
           {results.map((r, i) => {
-            const catInfo = (CATEGORIES as Record<string, { label: string; color: string }>)[r.category];
             const noCoord = r.lat === 0 && r.lng === 0;
             return (
               <li key={`${r.name}-${r.address}-${i}`} role="option" aria-selected={i === highlight}>
@@ -139,11 +137,6 @@ export function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder,
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {catInfo && (
-                      <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded ${catInfo.color} text-white shrink-0`}>
-                        {catInfo.label}
-                      </span>
-                    )}
                     <span className="text-sm text-slate-900 dark:text-white font-semibold truncate">{r.name}</span>
                     {noCoord && <span className="text-[10px] text-slate-400 shrink-0">좌표 없음</span>}
                   </div>

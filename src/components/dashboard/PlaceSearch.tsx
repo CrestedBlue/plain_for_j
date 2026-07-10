@@ -1,5 +1,4 @@
 import { useState, type KeyboardEvent } from 'react';
-import { CATEGORIES } from '../../lib/categories';
 import { searchPlaces, type PlaceResult } from '../../lib/places';
 import { Icon } from '../icons/Icon';
 
@@ -127,7 +126,6 @@ export function PlaceSearch({
       {displayResults.length > 0 && (
         <ul className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
           {displayResults.map((r, i) => {
-            const catInfo = (CATEGORIES as Record<string, { label: string; color: string }>)[r.category];
             const noCoord = r.lat === 0 && r.lng === 0;
             return (
               <li
@@ -142,11 +140,6 @@ export function PlaceSearch({
                   className="flex-1 min-w-0 text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-900 transition disabled:cursor-not-allowed"
                 >
                   <div className="flex items-center gap-2">
-                    {catInfo && (
-                      <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded ${catInfo.color} text-white shrink-0`}>
-                        {catInfo.label}
-                      </span>
-                    )}
                     <span className="text-sm text-slate-900 dark:text-white font-semibold truncate">{r.name}</span>
                     {noCoord && <span className="text-[10px] text-slate-400 shrink-0">좌표 없음</span>}
                   </div>

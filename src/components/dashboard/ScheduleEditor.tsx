@@ -1,6 +1,5 @@
 import { type FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
-import { CATEGORIES } from '../../lib/categories';
 import type { PlaceResult } from '../../lib/places';
 import type { GeoLocation } from '../../types';
 import { Icon } from '../icons/Icon';
@@ -49,7 +48,6 @@ export function ScheduleEditor(props: Props) {
 
 /* ── 조회 (읽기 전용) ─────────────────────────────────────── */
 function ViewCard({ form, onEnterEdit, onDelete }: Props) {
-  const cat = CATEGORIES[form.category];
   const name = displayedName(form);
   const hasAlias = form.displayName.trim().length > 0;
 
@@ -67,9 +65,6 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
 
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] px-2 py-0.5 font-bold rounded-full ${cat?.color} text-white`}>
-            {cat?.label || '기타'}
-          </span>
           <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/40 px-2 py-0.5 rounded">
             <Icon name="clock" className="w-3.5 h-3.5" />
             {form.time}

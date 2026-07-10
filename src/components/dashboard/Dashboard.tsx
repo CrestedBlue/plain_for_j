@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTripStore } from '../../store/tripStore';
 import { todayISO } from '../../lib/dates';
-import { searchPlaces, toCategoryOrDefault, type PlaceResult } from '../../lib/places';
+import { searchPlaces, type PlaceResult } from '../../lib/places';
 import { useTheme } from '../../lib/theme';
 import type { GeoLocation, ScheduleItem } from '../../types';
 import type { MapClickPayload } from '../map/MapPanel';
@@ -194,11 +194,10 @@ export function Dashboard() {
     }
   };
 
-  // 폼(장소명 자동완성 · 검색결과 "변경")에서 장소를 골랐을 때: 이름·카테고리·위경도 반영.
+  // 폼(장소명 자동완성 · 검색결과 "변경")에서 장소를 골랐을 때: 이름·위경도 반영.
   const applyPlaceToForm = (place: PlaceResult) => {
     patchForm({
       locationName: place.name,
-      category: toCategoryOrDefault(place.category, form.category),
       location: toLocation(place),
     });
   };
@@ -219,7 +218,6 @@ export function Dashboard() {
     setForm({
       ...BLANK_FORM,
       locationName: place.name,
-      category: toCategoryOrDefault(place.category, BLANK_FORM.category),
       location: toLocation(place),
     });
     scrollEditorIntoViewOnMobile();

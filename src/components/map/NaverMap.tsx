@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { CATEGORIES } from '../../lib/categories';
 import { loadNaverMap } from '../../lib/naverMapLoader';
 import { useTheme } from '../../lib/theme';
 import { scheduleName, type ScheduleItem } from '../../types';
+
+/** 모든 일정 마커의 단일 색(카테고리 색 구분 제거). */
+const MARKER_COLOR = '#6366f1';
 
 type Props = {
   clientId: string;
@@ -214,7 +216,7 @@ export function NaverMap({
       if (!item.location || (item.location.lat === 0 && item.location.lng === 0)) return;
       alive.add(item.id);
       const isActive = item.id === activeScheduleId;
-      const catColor = CATEGORIES[item.category]?.markerColor ?? '#6366f1';
+      const catColor = MARKER_COLOR;
       const size = isActive ? 30 : 24;
       const html = `
         <div style="position:relative;transform:translate(-50%,-50%)">
@@ -231,13 +233,12 @@ export function NaverMap({
         const marker = new naver.maps.Marker({ position: pos, map, icon });
         naver.maps.Event.addListener(marker, 'click', () => {
           onPinClick(item.id);
-          const cat = CATEGORIES[item.category];
           const iw = infoWindowRef.current;
           if (!iw) return;
           iw.setContent(`
             <div style="padding:8px 12px;border-radius:10px;background:#111827;color:#fff;font-size:12px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:120px">
               <div style="font-weight:700;font-size:13px">${scheduleName(item)}</div>
-              <div style="opacity:.75;margin-top:2px">${cat?.label ?? '기타'} · ${item.time}</div>
+              <div style="opacity:.75;margin-top:2px">${item.time}</div>
             </div>`);
           iw.open(map, marker);
         });

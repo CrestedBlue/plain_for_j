@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { scheduleName, type ScheduleItem } from '../../types';
-import { CATEGORIES } from '../../lib/categories';
 import { Icon } from '../icons/Icon';
 
 type Props = {
@@ -35,7 +34,7 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
     <div className="relative border-l-2 border-slate-200 dark:border-slate-700/60 ml-3 pl-5 space-y-2">
       {schedules.map((item) => {
         const isActive = item.id === activeScheduleId;
-        const catInfo = CATEGORIES[item.category];
+        const hasAlias = (item.displayName ?? '').trim().length > 0;
         return (
           <div
             key={item.id}
@@ -49,7 +48,7 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
           >
             <span
               className={`absolute -left-[27px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-4 border-white dark:border-slate-900 ${
-                isActive ? 'bg-indigo-500 ring-4 ring-indigo-500/20' : catInfo?.color || 'bg-slate-400 dark:bg-slate-600'
+                isActive ? 'bg-indigo-500 ring-4 ring-indigo-500/20' : 'bg-slate-400 dark:bg-slate-600'
               }`}
             />
 
@@ -69,10 +68,12 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
                   >
                     {scheduleName(item)}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${catInfo?.color}`} />
-                    {(item.displayName ?? '').trim() ? item.locationName : catInfo?.label}
-                  </div>
+                  {hasAlias && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                      <Icon name="map-pin" className="w-3 h-3 shrink-0" />
+                      {item.locationName}
+                    </div>
+                  )}
                 </div>
               </div>
 
