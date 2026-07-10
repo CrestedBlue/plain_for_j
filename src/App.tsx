@@ -47,7 +47,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans antialiased">{screen}</div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans antialiased">
+      {screen}
+    </div>
   );
 }
 
@@ -62,11 +64,11 @@ type CenterNoteProps = {
 function CenterNote({ icon, title, subtitle, spin, children }: CenterNoteProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl mb-3">
+      <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-3">
         <Icon name={icon} className={`w-8 h-8 ${spin ? 'animate-spin-slow' : ''}`} />
       </div>
-      <h2 className="text-lg font-bold text-white">{title}</h2>
-      {subtitle && <p className="text-sm text-slate-400 mt-1 max-w-sm">{subtitle}</p>}
+      <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
+      {subtitle && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm">{subtitle}</p>}
       {children}
     </div>
   );

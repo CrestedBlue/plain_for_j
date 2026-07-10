@@ -31,10 +31,10 @@ export function CalendarBoard(props: Props) {
       {props.months.map((month) => (
         <section
           key={`${month.year}-${month.month}`}
-          className="bg-slate-950/30 p-4 rounded-2xl border border-slate-800/80"
+          className="bg-slate-50 dark:bg-slate-950/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80"
         >
-          <div className="text-center pb-3 mb-3 border-b border-slate-800/60">
-            <span className="text-sm font-bold text-white">
+          <div className="text-center pb-3 mb-3 border-b border-slate-200 dark:border-slate-800/60">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">
               {month.year}년 {month.month}월
             </span>
           </div>
@@ -83,7 +83,7 @@ function DayCell({
 
     if (disabled) {
       return (
-        <div className="aspect-square flex items-center justify-center text-xs text-slate-700 cursor-not-allowed">
+        <div className="aspect-square flex items-center justify-center text-xs text-slate-300 dark:text-slate-700 cursor-not-allowed">
           {dayNum}
         </div>
       );
@@ -94,13 +94,13 @@ function DayCell({
     const onlyStart = isStart && !end;
 
     const base = 'aspect-square flex flex-col items-center justify-center text-xs relative cursor-pointer transition';
-    let style = 'text-slate-200 hover:bg-slate-800 rounded-lg';
+    let style = 'text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg';
     if (selected) {
       style = `bg-indigo-500 text-white font-bold ${
         onlyStart ? 'rounded-lg' : roundLeft ? 'rounded-l-lg' : roundRight ? 'rounded-r-lg' : ''
       }`;
     } else if (inRange) {
-      style = `bg-indigo-500/25 text-indigo-100 ${roundLeft ? 'rounded-l-lg' : ''} ${roundRight ? 'rounded-r-lg' : ''}`;
+      style = `bg-indigo-500/25 text-indigo-900 dark:text-indigo-100 ${roundLeft ? 'rounded-l-lg' : ''} ${roundRight ? 'rounded-r-lg' : ''}`;
     }
 
     return (
@@ -112,14 +112,13 @@ function DayCell({
     );
   }
 
-  // view mode (여행 묶음 표시)
   const { tripIndex, onPick } = props;
   const idx = tripIndex.get(date);
   const isTrip = idx !== undefined;
 
   if (!isTrip) {
     return (
-      <div className="aspect-square flex items-center justify-center text-xs font-semibold text-slate-500">
+      <div className="aspect-square flex items-center justify-center text-xs font-semibold text-slate-400 dark:text-slate-500">
         {dayNum}
       </div>
     );

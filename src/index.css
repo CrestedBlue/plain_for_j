@@ -2,7 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 브라우저 UI 스크롤바·form control 색을 테마와 동기 */
 :root {
+  color-scheme: light;
+}
+:root.dark {
   color-scheme: dark;
 }
 
@@ -15,6 +19,13 @@ body,
 body {
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+  /* Tailwind base가 이후 배경/텍스트 색을 덮어씀. 부트 순간에 흰 깜빡임을 최소화. */
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+}
+.dark body {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9; /* slate-100 */
 }
 
 /* 터치 지연 제거 + 모바일 탭 하이라이트 정리 */
