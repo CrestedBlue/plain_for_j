@@ -1,8 +1,10 @@
 import { type FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
 import { CATEGORIES } from '../../lib/categories';
+import type { PlaceResult } from '../../lib/places';
 import type { GeoLocation } from '../../types';
 import { Icon } from '../icons/Icon';
+import { PlaceAutocomplete } from './PlaceAutocomplete';
 // [프로토타입 보류] 일정별 "의논" 댓글 — 사람 식별(인증) 먼저 만든 뒤 재활성화 예정.
 // import { CommentThread } from './CommentThread';
 
@@ -22,6 +24,8 @@ type Props = {
   mode: EditorMode;
   form: ScheduleFormState;
   onPatch: (patch: Partial<ScheduleFormState>) => void;
+  /** 장소명 자동완성에서 결과를 고르면 호출 — 이름·카테고리·위경도를 함께 반영. */
+  onSelectPlace: (place: PlaceResult) => void;
   onSubmit: (e: FormEvent) => void;
   onDelete?: () => void;
   onEnterEdit?: () => void;
@@ -112,7 +116,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
 }
 
 /* ── 수정 / 추가 (편집 폼) ────────────────────────────────── */
-function EditForm({ mode, form, onPatch, onSubmit, onCancelEdit }: Props) {
+function EditForm({ mode, form, onPatch, onSelectPlace, onSubmit, onCancelEdit }: Props) {
   const isEdit = mode === 'edit';
 
   return (
@@ -130,7 +134,7 @@ function EditForm({ mode, form, onPatch, onSubmit, onCancelEdit }: Props) {
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white">{isEdit ? '일정 수정' : '새 일정 추가'}</h4>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            지도 아래 <strong className="text-indigo-600 dark:text-indigo-300">장소 검색</strong> 또는 지도 클릭으로 위치를 지정하세요.
+            <strong className="text-indigo-600 dark:text-indigo-300">장소명을 입력</strong>하면 자동 검색됩니다. 지도 클릭이나 아래 검색으로도 지정할 수 있어요.
           </p>
         </div>
       </div>
@@ -139,13 +143,12 @@ function EditForm({ mode, form, onPatch, onSubmit, onCancelEdit }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>장소명</label>
-            <input
-              type="text"
-              required
+            <PlaceAutocomplete
               value={form.locationName}
-              onChange={(e) => onPatch({ locationName: e.target.value })}
-              placeholder="예: 여의도 한강공원"
-              className={inputClass}
+              onChange={(name) => onPatch({ locationName: name })}
+              onSelectPlace={onSelectPlace}
+              placeholder="예: 여의도 한강공원 (입력하면 자동 검색)"
+              inputClassName={inputClass}
             />
           </div>
           <div>
