@@ -18,8 +18,6 @@ export type ItemInput = {
   displayName: string;
   category: Category;
   notes: string;
-  x: number;
-  y: number;
   location?: GeoLocation;
 };
 
@@ -51,8 +49,6 @@ const toPayload = (input: ItemInput): ItemPayload => ({
   displayName: input.displayName,
   category: input.category,
   notes: input.notes,
-  x: input.x,
-  y: input.y,
   location: input.location,
 });
 

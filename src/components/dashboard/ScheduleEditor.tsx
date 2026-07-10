@@ -1,6 +1,6 @@
 import { type FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
-import { CATEGORIES, CATEGORY_KEYS, SEOUL_LANDMARKS } from '../../lib/categories';
+import { CATEGORIES } from '../../lib/categories';
 import type { GeoLocation } from '../../types';
 import { Icon } from '../icons/Icon';
 // [프로토타입 보류] 일정별 "의논" 댓글 — 사람 식별(인증) 먼저 만든 뒤 재활성화 예정.
@@ -11,8 +11,6 @@ export type ScheduleFormState = {
   locationName: string;
   displayName: string;
   category: Category;
-  x: number;
-  y: number;
   notes: string;
   /** 위경도(있으면 서버 저장). 검색 결과 선택 시 채워짐. */
   location?: GeoLocation;
@@ -20,14 +18,11 @@ export type ScheduleFormState = {
 
 export type EditorMode = 'view' | 'edit' | 'add';
 
-type Landmark = (typeof SEOUL_LANDMARKS)[number];
-
 type Props = {
   mode: EditorMode;
   form: ScheduleFormState;
   onPatch: (patch: Partial<ScheduleFormState>) => void;
   onSubmit: (e: FormEvent) => void;
-  onSelectPreset: (landmark: Landmark) => void;
   onDelete?: () => void;
   onEnterEdit?: () => void;
   onCancelEdit?: () => void;
@@ -117,7 +112,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
 }
 
 /* ── 수정 / 추가 (편집 폼) ────────────────────────────────── */
-function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit }: Props) {
+function EditForm({ mode, form, onPatch, onSubmit, onCancelEdit }: Props) {
   const isEdit = mode === 'edit';
 
   return (
@@ -135,28 +130,12 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white">{isEdit ? '일정 수정' : '새 일정 추가'}</h4>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            지도 아래 <strong className="text-indigo-600 dark:text-indigo-300">장소 검색</strong>, 랜드마크 프리셋, 또는 지도 클릭으로 위치를 지정하세요.
+            지도 아래 <strong className="text-indigo-600 dark:text-indigo-300">장소 검색</strong> 또는 지도 클릭으로 위치를 지정하세요.
           </p>
         </div>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className={`${labelClass} mb-1.5`}>인기 서울 랜드마크 퀵 선택</label>
-          <div className="flex gap-2 flex-wrap max-h-20 overflow-y-auto pr-1">
-            {SEOUL_LANDMARKS.map((landmark) => (
-              <button
-                key={landmark.name}
-                type="button"
-                onClick={() => onSelectPreset(landmark)}
-                className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/60 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700/80 rounded-md text-slate-700 dark:text-slate-300 transition shrink-0"
-              >
-                + {landmark.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>장소명</label>
@@ -183,30 +162,14 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>방문 시각</label>
-            <input
-              type="time"
-              value={form.time}
-              onChange={(e) => onPatch({ time: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>카테고리</label>
-            <select
-              value={form.category}
-              onChange={(e) => onPatch({ category: e.target.value as Category })}
-              className={inputClass}
-            >
-              {CATEGORY_KEYS.map((key) => (
-                <option key={key} value={key} className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
-                  {CATEGORIES[key].label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className={labelClass}>방문 시각</label>
+          <input
+            type="time"
+            value={form.time}
+            onChange={(e) => onPatch({ time: e.target.value })}
+            className={inputClass}
+          />
         </div>
 
         <div>

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTripStore } from '../../store/tripStore';
-import { CATEGORIES, SEOUL_LANDMARKS } from '../../lib/categories';
 import { todayISO } from '../../lib/dates';
-import { latLngToSvgXY, searchPlaces, toCategoryOrDefault, type PlaceResult } from '../../lib/places';
+import { searchPlaces, toCategoryOrDefault, type PlaceResult } from '../../lib/places';
 import { useTheme } from '../../lib/theme';
-import { scheduleName, type GeoLocation, type ScheduleItem } from '../../types';
+import type { GeoLocation, ScheduleItem } from '../../types';
 import type { MapClickPayload } from '../map/MapPanel';
 import { Icon } from '../icons/Icon';
 import { MapPanel } from '../map/MapPanel';
@@ -23,8 +22,6 @@ const BLANK_FORM: ScheduleFormState = {
   locationName: '',
   displayName: '',
   category: 'sightseeing',
-  x: 250,
-  y: 250,
   notes: '',
 };
 
@@ -33,8 +30,6 @@ const toForm = (item: ScheduleItem): ScheduleFormState => ({
   locationName: item.locationName,
   displayName: item.displayName ?? '',
   category: item.category,
-  x: item.x,
-  y: item.y,
   notes: item.notes,
   location: item.location,
 });
@@ -44,8 +39,6 @@ const isValidLatLng = (loc?: GeoLocation): loc is GeoLocation =>
 
 const sortByTime = <T extends { time: string }>(list: T[]): T[] =>
   [...list].sort((a, b) => a.time.localeCompare(b.time));
-
-const randomCoord = () => Math.floor(Math.random() * 300) + 100;
 
 export function Dashboard() {
   const trip = useTripStore((s) => s.activeTrip);
@@ -73,10 +66,6 @@ export function Dashboard() {
   const activeDay = days[safeIndex] ?? null;
 
   const schedules = useMemo(() => sortByTime(activeDay?.items ?? []), [activeDay]);
-  const activeSchedule = useMemo(
-    () => schedules.find((s) => s.id === activeScheduleId) ?? null,
-    [schedules, activeScheduleId],
-  );
   const totalPlaces = useMemo(() => days.reduce((acc, d) => acc + d.items.length, 0), [days]);
   const tripId = trip?.id;
 
@@ -137,7 +126,7 @@ export function Dashboard() {
   const handleStartAdd = () => {
     setActiveScheduleId('');
     setEditorMode('add');
-    setForm({ ...BLANK_FORM, x: randomCoord(), y: randomCoord() });
+    setForm({ ...BLANK_FORM });
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -152,8 +141,6 @@ export function Dashboard() {
       displayName: form.displayName.trim(),
       category: form.category,
       notes: form.notes,
-      x: form.x,
-      y: form.y,
       location: isValidLatLng(form.location) ? form.location : undefined,
     };
     if (editorMode === 'add') {
@@ -183,19 +170,8 @@ export function Dashboard() {
     }
   };
 
-  const handleSelectPreset = (landmark: (typeof SEOUL_LANDMARKS)[number]) => {
-    patchForm({
-      locationName: landmark.name,
-      category: landmark.category,
-      x: landmark.x,
-      y: landmark.y,
-      location: undefined,
-    });
-  };
-
   const handleSelectPlace = (place: PlaceResult) => {
     if (editorMode === 'view') setEditorMode('edit');
-    const { x, y } = latLngToSvgXY(place.lat, place.lng);
     const location: GeoLocation | undefined =
       place.lat !== 0 || place.lng !== 0
         ? { name: place.name, lat: place.lat, lng: place.lng }
@@ -203,8 +179,6 @@ export function Dashboard() {
     patchForm({
       locationName: place.name,
       category: toCategoryOrDefault(place.category, form.category),
-      x,
-      y,
       location,
     });
     // 모바일에선 검색 결과 위치가 화면 밖일 수 있어 지도 영역을 뷰포트로 스크롤.
@@ -216,24 +190,11 @@ export function Dashboard() {
 
   const handleMapClick = async (p: MapClickPayload) => {
     if (editorMode === 'view') setEditorMode('edit');
-    if (p.kind === 'xy') {
-      const baseName = form.locationName.trim() || '지도 지정 장소';
-      patchForm({
-        x: p.x,
-        y: p.y,
-        locationName: baseName,
-        location: undefined,
-      });
-      return;
-    }
 
-    // 실지도 클릭: 우선 좌표를 폼에 반영(즉시 임시 핀 표시).
-    const { x, y } = latLngToSvgXY(p.lat, p.lng);
+    // 지도 클릭: 우선 좌표를 폼에 반영(즉시 임시 핀 표시).
     const clickedName = p.name?.trim() ?? '';
     const baseName = clickedName || form.locationName.trim() || '지도 지정 장소';
     patchForm({
-      x,
-      y,
       locationName: baseName,
       location: { name: baseName, lat: p.lat, lng: p.lng },
     });
@@ -265,7 +226,6 @@ export function Dashboard() {
 
   const dayLabel = `Day ${safeIndex + 1}`;
   const calendarCenter = totalPlaces > 0 ? trip.startDate : todayISO();
-  const mapFocus = activeSchedule ?? schedules[0] ?? null;
 
   return (
     <>
@@ -348,7 +308,6 @@ export function Dashboard() {
               form={form}
               onPatch={patchForm}
               onSubmit={handleSubmit}
-              onSelectPreset={handleSelectPreset}
               onDelete={handleDelete}
               onEnterEdit={handleEnterEdit}
               onCancelEdit={handleCancelEdit}
@@ -372,53 +331,18 @@ export function Dashboard() {
               <MapPanel
                 schedules={schedules}
                 activeScheduleId={activeScheduleId}
-                newX={form.x}
-                newY={form.y}
                 newLat={form.location?.lat ?? 0}
                 newLng={form.location?.lng ?? 0}
                 dayLabel={dayLabel}
                 onMapClick={handleMapClick}
                 onPinClick={selectSchedule}
               />
-
-              <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center justify-between gap-4">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold block uppercase">현재 지도 포커스</span>
-                  {mapFocus ? (
-                    <div className="space-y-0.5">
-                      <h5 className="font-bold text-indigo-600 dark:text-indigo-400 text-sm flex items-center gap-1">
-                        <Icon name="map-pin" className="w-4 h-4" />
-                        {scheduleName(mapFocus)}
-                      </h5>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1">{CATEGORIES[mapFocus.category].label}</p>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">등록된 일정이 없습니다.</span>
-                  )}
-                </div>
-                <div className="text-right text-xs shrink-0">
-                  <span className="text-slate-500">배치 좌표</span>
-                  <div className="font-mono text-slate-700 dark:text-slate-200 font-semibold">
-                    {mapFocus ? `X:${mapFocus.x} / Y:${mapFocus.y}` : '- / -'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-                  <span className="text-[10px] text-slate-500 block">총 여행 일수</span>
-                  <strong className="text-base text-slate-900 dark:text-white">{days.length}일</strong>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-                  <span className="text-[10px] text-slate-500 block">등록된 전체 명소</span>
-                  <strong className="text-base text-slate-900 dark:text-white">{totalPlaces}곳</strong>
-                </div>
-              </div>
             </div>
 
             {/* 지도 아래: 네이버 지역검색. 결과 선택 시 편집 폼(장소명·카테고리·위경도)에 반영되며,
-                지도의 임시 핀과 panTo가 자동 동작. */}
-            <PlaceSearch onSelect={handleSelectPlace} />
+                지도의 임시 핀과 panTo가 자동 동작. 지도 클릭으로 자동 검색된 결과(probeResults)는
+                externalResults로 주입해 최상위 결과 외 다른 후보도 고를 수 있게 노출. */}
+            <PlaceSearch onSelect={handleSelectPlace} externalResults={probeResults} externalQuery={probeQuery} />
           </div>
         </div>
       </main>

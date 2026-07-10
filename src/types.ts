@@ -1,6 +1,6 @@
 import type { Category } from './lib/categories';
 
-/** 실제 위경도 좌표(미래 네이버 Maps 표시용으로 적재). 현재 표시는 SVG x/y 사용 */
+/** 실제 위경도 좌표(네이버 실지도 표시용). */
 export type GeoLocation = {
   name: string;
   lat: number;
@@ -17,10 +17,7 @@ export type ScheduleItem = {
   displayName: string;
   category: Category;
   notes: string;
-  /** SVG 폴백 지도용 좌표 (0~500) — 지도 클릭/프리셋으로 설정 */
-  x: number;
-  y: number;
-  /** 위경도 — 네이버 검색 결과 선택 시 채워짐(미래 실지도용) */
+  /** 위경도 — 지도 클릭/네이버 검색 결과 선택 시 채워짐. 없으면 지도에 표시되지 않음. */
   location?: GeoLocation;
 };
 

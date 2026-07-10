@@ -7,6 +7,8 @@ type Props = {
   clientId: string;
   schedules: ScheduleItem[];
   activeScheduleId: string;
+  /** 그날(day)의 식별 키 — 바뀌면 그날 일정 전체가 화면에 들어오도록 fitBounds. */
+  dayKey: string;
   newLat: number;
   newLng: number;
   /** 지도 클릭 시 위경도 + (리버스 지오코드로 추출한) 근처 장소/건물명. 실패 시 name 미지정. */
@@ -19,6 +21,7 @@ type Props = {
 type Naver = {
   maps: {
     LatLng: new (lat: number, lng: number) => unknown;
+    LatLngBounds: new (sw: unknown, ne: unknown) => NaverBoundsInstance;
     Map: new (el: HTMLElement, opts: unknown) => NaverMapInstance;
     Marker: new (opts: unknown) => NaverMarkerInstance;
     Point: new (x: number, y: number) => unknown;
@@ -52,12 +55,15 @@ type NaverMapInstance = {
   panTo: (latlng: unknown) => void;
   setCenter: (latlng: unknown) => void;
   getCenter: () => unknown;
+  fitBounds: (bounds: unknown, margin?: number) => void;
 };
 type NaverMarkerInstance = {
   setMap: (map: NaverMapInstance | null) => void;
   setPosition: (latlng: unknown) => void;
   setIcon: (icon: unknown) => void;
+  getPosition: () => unknown;
 };
+type NaverBoundsInstance = { extend: (latlng: unknown) => void };
 type Coord = { x: number; y: number };
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 } as const;
@@ -82,17 +88,23 @@ function extractPlaceName(res: ReverseGeocodeResponse): string {
   return stripped || jibun.trim();
 }
 
+/** 위경도가 유효(0/0이 아님)한 일정만 걸러낸다. */
+function withLocation(schedules: ScheduleItem[]): ScheduleItem[] {
+  return schedules.filter((s) => s.location && !(s.location.lat === 0 && s.location.lng === 0));
+}
+
 /**
  * 네이버 지도 실지도 컴포넌트.
  *
- * - 위경도가 있는 일정만 지도에 표시(없으면 렌더 스킵 — 이전 SVG 좌표만 있는 일정 호환).
- * - `activeScheduleId` 변화 시 해당 마커로 `panTo` — "새/선택 일정 자동 포커스".
- * - 지도 클릭 시 lat/lng을 부모로 넘김(SVG 폴백은 x/y를 넘기던 것과 좌표계 다름 — MapPanel에서 분기).
+ * - 위경도가 있는 일정만 지도에 표시(없으면 렌더 스킵).
+ * - `dayKey` 변화 시 그날 일정 전체가 보이게 fitBounds, `activeScheduleId` 변화 시 해당 마커로 panTo.
+ * - 지도 클릭 시 lat/lng을 부모로 넘김.
  */
 export function NaverMap({
   clientId,
   schedules,
   activeScheduleId,
+  dayKey,
   newLat,
   newLng,
   onMapClick,
@@ -212,7 +224,27 @@ export function NaverMap({
     });
   }, [schedules, activeScheduleId, ready, onPinClick]);
 
-  // 활성 일정 자동 panTo (새/선택 일정 포커스).
+  // dayKey 변화 시 그날 일정 전체가 보이도록 fitBounds.
+  useEffect(() => {
+    const map = mapRef.current;
+    const naver = naverRef.current;
+    if (!ready || !map || !naver) return;
+    const located = withLocation(schedules);
+    if (located.length === 0) return;
+    if (located.length === 1) {
+      map.setCenter(new naver.maps.LatLng(located[0].location!.lat, located[0].location!.lng));
+      return;
+    }
+    const bounds = new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(located[0].location!.lat, located[0].location!.lng),
+      new naver.maps.LatLng(located[0].location!.lat, located[0].location!.lng),
+    );
+    located.slice(1).forEach((item) => bounds.extend(new naver.maps.LatLng(item.location!.lat, item.location!.lng)));
+    map.fitBounds(bounds, 48);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayKey, ready]);
+
+  // 활성 일정 자동 panTo (새/선택 일정 포커스) — fitBounds 이후 같은 줌에서 살짝 재센터.
   useEffect(() => {
     const map = mapRef.current;
     const naver = naverRef.current;

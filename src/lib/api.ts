@@ -15,8 +15,6 @@ export type ItemPayload = {
   displayName: string;
   category: string;
   notes: string;
-  x: number;
-  y: number;
   location?: { name: string; lat: number; lng: number };
 };
 
