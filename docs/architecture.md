@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | 프론트 빌드/프레임워크 | Vite + React 18 + TypeScript | SPA |
 | 상태관리 | Zustand | (v2에서 persist→서버 API로 교체 예정) |
-| 스타일 | Tailwind CSS + 디자인 토큰 | web 룰 준수 |
-| 지도 표시 | **SVG 개념지도**(`VectorMapFallback`) | 카카오 제거됨 → [history.md](history.md) |
+| 스타일 | Tailwind CSS + 디자인 토큰 · **라이트/다크 토글** | `darkMode: 'class'`, `useTheme` 훅, FOUC 방지 인라인 부트스트랩 |
+| 지도 표시 | **네이버 지도 v3**(`NaverMap`) + **SVG 개념지도 폴백**(`VectorMapFallback`) | 키 없을 때 자동 SVG 폴백 — [history.md](history.md) |
 | 프론트 테스트 | Vitest(단위) + Playwright(E2E) | |
 | 백엔드 언어/프레임워크 | **Go + gin** | `server/` |
 | DB / 접근 | **MySQL / sqlc** | `.sql` → 타입세이프 Go 생성 |
@@ -43,11 +43,11 @@ src/
 │  ├─ calendar/      # CalendarBoard, CreateTripCalendar
 │  ├─ dashboard/     # Dashboard, DayTabs, ScheduleTimeline, ScheduleEditor,
 │  │                 #   CalendarModal, CommentThread(프로토타입 보류)
-│  ├─ map/           # MapPanel, VectorMapFallback
+│  ├─ map/           # MapPanel(키 유무 분기), NaverMap, VectorMapFallback
 │  ├─ trip-list/     # TripList
 │  └─ icons/         # Icon
-├─ store/tripStore.ts   # Zustand(+persist, v2에서 교체 예정)
-├─ lib/                 # calendar, categories, dates(+test)
+├─ store/tripStore.ts   # Zustand — 서버(MySQL) API 캐시
+├─ lib/                 # calendar, categories, dates(+test), api, places, naverMapLoader, theme
 └─ types.ts
 ```
 

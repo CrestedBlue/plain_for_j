@@ -1,9 +1,9 @@
-import type { FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
 import { CATEGORIES, CATEGORY_KEYS, SEOUL_LANDMARKS } from '../../lib/categories';
+import type { GeoLocation } from '../../types';
 import { Icon } from '../icons/Icon';
 // [프로토타입 보류] 일정별 "의논" 댓글 — 사람 식별(인증) 먼저 만든 뒤 재활성화 예정.
-//   하드코딩 더미라 지금은 끔. 참고: src/components/dashboard/CommentThread.tsx
 // import { CommentThread } from './CommentThread';
 
 export type ScheduleFormState = {
@@ -14,6 +14,8 @@ export type ScheduleFormState = {
   x: number;
   y: number;
   notes: string;
+  /** 위경도(있으면 서버 저장). 검색 결과 선택 시 채워짐. */
+  location?: GeoLocation;
 };
 
 export type EditorMode = 'view' | 'edit' | 'add';
@@ -33,6 +35,15 @@ type Props = {
 
 const displayedName = (form: ScheduleFormState) => form.displayName.trim() || form.locationName;
 
+// 재사용 클래스: 라이트/다크 대응 폼 컨트롤 스타일
+const inputClass =
+  'w-full px-3 py-2 bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 dark:bg-slate-950/50 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-500 rounded-lg focus:border-indigo-500 outline-none text-sm';
+
+const cardClass =
+  'bg-white dark:bg-slate-800/80 rounded-2xl p-6 border border-slate-200 dark:border-slate-700/50 shadow-xl space-y-4';
+
+const labelClass = 'block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1';
+
 export function ScheduleEditor(props: Props) {
   return props.mode === 'view' ? <ViewCard {...props} /> : <EditForm {...props} />;
 }
@@ -44,14 +55,14 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
   const hasAlias = form.displayName.trim().length > 0;
 
   return (
-    <div className="bg-slate-800/80 rounded-2xl p-6 border border-slate-700/50 shadow-xl space-y-4">
-      <div className="flex items-center gap-3 border-b border-slate-700/60 pb-3">
-        <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+    <div className={cardClass}>
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+        <div className="p-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg">
           <Icon name="info" className="w-5 h-5" />
         </div>
         <div>
-          <h4 className="font-bold text-white">일정 조회</h4>
-          <p className="text-[11px] text-slate-400">선택된 일정의 상세 내용입니다.</p>
+          <h4 className="font-bold text-slate-900 dark:text-white">일정 조회</h4>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">선택된 일정의 상세 내용입니다.</p>
         </div>
       </div>
 
@@ -60,15 +71,15 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
           <span className={`text-[10px] px-2 py-0.5 font-bold rounded-full ${cat?.color} text-white`}>
             {cat?.label || '기타'}
           </span>
-          <span className="flex items-center gap-1 text-xs text-slate-400 font-mono bg-slate-950/40 px-2 py-0.5 rounded">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/40 px-2 py-0.5 rounded">
             <Icon name="clock" className="w-3.5 h-3.5" />
             {form.time}
           </span>
         </div>
-        <h3 className="text-lg font-bold text-white">{name || '장소 미지정'}</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">{name || '장소 미지정'}</h3>
         {hasAlias && (
-          <p className="text-sm text-slate-400 flex items-center gap-1">
-            <Icon name="map-pin" className="w-4 h-4 text-slate-500" />
+          <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1">
+            <Icon name="map-pin" className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             {form.locationName}
           </p>
         )}
@@ -76,7 +87,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
 
       <div>
         <span className="text-xs text-slate-500 block mb-1">상세 메모 / 체크리스트</span>
-        <p className="text-slate-300 text-sm bg-slate-900/60 p-4 rounded-xl border border-slate-800 min-h-[80px] leading-relaxed whitespace-pre-line">
+        <p className="text-slate-700 dark:text-slate-300 text-sm bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 min-h-[80px] leading-relaxed whitespace-pre-line">
           {form.notes || '작성된 메모가 없습니다.'}
         </p>
       </div>
@@ -92,7 +103,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
         {onDelete && (
           <button
             onClick={onDelete}
-            className="py-3 px-4 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl border border-slate-700/60 transition"
+            className="py-3 px-4 text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl border border-slate-200 dark:border-slate-700/60 transition"
             title="이 일정 삭제"
           >
             <Icon name="trash" className="w-5 h-5" />
@@ -100,7 +111,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
         )}
       </div>
 
-      {/* [프로토타입 보류] 일정별 의논(댓글) — 인증 도입 후 재활성화. <CommentThread /> */}
+      {/* [프로토타입 보류] <CommentThread /> */}
     </div>
   );
 }
@@ -110,27 +121,35 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
   const isEdit = mode === 'edit';
 
   return (
-    <div className="bg-slate-800/80 rounded-2xl p-6 border border-slate-700/50 shadow-xl space-y-4">
-      <div className="flex items-center gap-2 border-b border-slate-700/60 pb-3">
-        <span className={`p-1.5 rounded-lg ${isEdit ? 'bg-indigo-500/10 text-indigo-400' : 'bg-sky-500/10 text-sky-400'}`}>
+    <div className={cardClass}>
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+        <span
+          className={`p-1.5 rounded-lg ${
+            isEdit
+              ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+          }`}
+        >
           <Icon name={isEdit ? 'edit' : 'plus'} className="w-5 h-5" />
         </span>
         <div>
-          <h4 className="font-bold text-white">{isEdit ? '일정 수정' : '새 일정 추가'}</h4>
-          <p className="text-[11px] text-slate-400">지도를 클릭하거나 랜드마크를 골라 위치를 지정하세요.</p>
+          <h4 className="font-bold text-slate-900 dark:text-white">{isEdit ? '일정 수정' : '새 일정 추가'}</h4>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            지도 아래 <strong className="text-indigo-600 dark:text-indigo-300">장소 검색</strong>, 랜드마크 프리셋, 또는 지도 클릭으로 위치를 지정하세요.
+          </p>
         </div>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1.5">인기 서울 랜드마크 퀵 선택</label>
+          <label className={`${labelClass} mb-1.5`}>인기 서울 랜드마크 퀵 선택</label>
           <div className="flex gap-2 flex-wrap max-h-20 overflow-y-auto pr-1">
             {SEOUL_LANDMARKS.map((landmark) => (
               <button
                 key={landmark.name}
                 type="button"
                 onClick={() => onSelectPreset(landmark)}
-                className="px-2.5 py-1 text-xs bg-slate-900/60 hover:bg-slate-700 border border-slate-700/80 rounded-md text-slate-300 transition shrink-0"
+                className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/60 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700/80 rounded-md text-slate-700 dark:text-slate-300 transition shrink-0"
               >
                 + {landmark.name}
               </button>
@@ -140,49 +159,49 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">장소명</label>
+            <label className={labelClass}>장소명</label>
             <input
               type="text"
               required
               value={form.locationName}
               onChange={(e) => onPatch({ locationName: e.target.value })}
               placeholder="예: 여의도 한강공원"
-              className="w-full px-3 py-2 bg-slate-950/50 border border-slate-700 rounded-lg focus:border-indigo-500 outline-none text-sm text-white"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">
-              표기명 <span className="text-slate-600 font-normal">(선택)</span>
+            <label className={labelClass}>
+              표기명 <span className="text-slate-400 dark:text-slate-600 font-normal">(선택)</span>
             </label>
             <input
               type="text"
               value={form.displayName}
               onChange={(e) => onPatch({ displayName: e.target.value })}
               placeholder="비우면 장소명으로 표시"
-              className="w-full px-3 py-2 bg-slate-950/50 border border-slate-700 rounded-lg focus:border-indigo-500 outline-none text-sm text-white"
+              className={inputClass}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">방문 시각</label>
+            <label className={labelClass}>방문 시각</label>
             <input
               type="time"
               value={form.time}
               onChange={(e) => onPatch({ time: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-950/50 border border-slate-700 rounded-lg focus:border-indigo-500 outline-none text-sm text-white"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">카테고리</label>
+            <label className={labelClass}>카테고리</label>
             <select
               value={form.category}
               onChange={(e) => onPatch({ category: e.target.value as Category })}
-              className="w-full px-3 py-2 bg-slate-950/50 border border-slate-700 rounded-lg focus:border-indigo-500 outline-none text-sm text-white"
+              className={inputClass}
             >
               {CATEGORY_KEYS.map((key) => (
-                <option key={key} value={key} className="bg-slate-900 text-white">
+                <option key={key} value={key} className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
                   {CATEGORIES[key].label}
                 </option>
               ))}
@@ -191,13 +210,13 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">상세 메모 / 체크리스트</label>
+          <label className={labelClass}>상세 메모 / 체크리스트</label>
           <textarea
             value={form.notes}
             onChange={(e) => onPatch({ notes: e.target.value })}
             placeholder="구체적으로 해야할 일이나 주의점을 자유롭게 메모하세요."
             rows={3}
-            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-700 rounded-lg focus:border-indigo-500 outline-none text-sm text-white resize-none leading-relaxed"
+            className={`${inputClass} resize-none leading-relaxed`}
           />
         </div>
 
@@ -206,7 +225,7 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
             <button
               type="button"
               onClick={onCancelEdit}
-              className="py-3 px-5 text-slate-400 hover:text-white font-semibold rounded-xl bg-slate-900/50 hover:bg-slate-700/50 transition"
+              className="py-3 px-5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/50 dark:hover:bg-slate-700/50 transition"
             >
               취소
             </button>
@@ -227,3 +246,4 @@ function EditForm({ mode, form, onPatch, onSubmit, onSelectPreset, onCancelEdit 
     </div>
   );
 }
+

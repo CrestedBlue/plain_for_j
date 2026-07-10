@@ -13,11 +13,13 @@
 | **P0. 백엔드 스캐폴딩 + 스키마** | Go+gin, MySQL 커넥션, sqlc 설정, `users/trips/days/schedule_items` 스키마, `/api/health` | ✅ **완료** (2026-06-29) |
 | **P1. Trip CRUD API** | sqlc 쿼리 + service + gin 핸들러, trips·days·items CRUD, 응답봉투 통일 | ✅ **완료** (2026-06-29) |
 | **P2. 소셜 OAuth 인증** | 카카오/구글 OAuth → `users` upsert → JWT 쿠키, 미들웨어 보호, `/api/me` | ⬜ 예정 |
-| **P3. 네이버 검색 프록시** | `GET /api/places/search` 정규화, 프론트 `src/lib/places.ts` | ⬜ 예정 |
+| **P3. 네이버 검색 프록시** | `GET /api/places/search` 정규화, 프론트 `src/lib/places.ts`, ScheduleEditor 인라인 검색 UI | ✅ **완료** (2026-07-09) · 라이브 5개 시나리오 검증 통과 |
 | **P4. 프론트 데이터 계층 교체** | persist 제거 → `src/lib/api.ts`, localStorage→서버 1회 임포트 | 🟡 **핵심 완료** (2026-06-30) · localStorage 임포트는 보류(YAGNI) |
 | **P5. OCI 배포** | Caddy(HTTPS+정적+`/api`), systemd, 방화벽 2중 개방 | ⬜ 예정 |
+| **P6. 실지도(네이버 지도) 도입** | NCP Maps 등록, SDK 로더, `NaverMap` 컴포넌트, `MapPanel` 키 유무 분기, 위경도 저장·활성 pin 자동 panTo, 포커싱(timeline scroll + 모바일 지도 영역 이동) | 🟡 **코드 완료** (2026-07-09) · Client ID 주입됨. 2026-07-10에 검색→panTo·테마 연동 추가 |
 
 > ⚠️ **순서 주의**: 소셜 OAuth 리다이렉트는 도메인 필수 → 도메인+HTTPS를 P2 전에 선확보(배포 일정이 당겨짐). 개발 중엔 `localhost` 리다이렉트 가능.
+> ⚠️ **P6 사전등록**: 네이버 지도 API는 **NCP(NAVER Cloud Platform)**에서 관리 — `Maps > Application`에 Web 서비스 URL(`http://localhost:5173`, 프로덕션 도메인) 화이트리스트 등록 필요. Client ID는 클라이언트 노출되지만 도메인 제한으로 보호. Client ID 없으면 SVG 개념지도 폴백으로 자동 전환.
 
 ## v2 완료 기준 (Acceptance)
 
