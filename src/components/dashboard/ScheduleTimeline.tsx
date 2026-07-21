@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { formatTimeRange } from '../../lib/schedule';
 import { scheduleName, type ScheduleItem } from '../../types';
 import { Icon } from '../icons/Icon';
 
@@ -35,6 +36,7 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
       {schedules.map((item) => {
         const isActive = item.id === activeScheduleId;
         const hasAlias = (item.displayName ?? '').trim().length > 0;
+        const timeRange = formatTimeRange(item);
         return (
           <div
             key={item.id}
@@ -56,7 +58,7 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
               <div className="min-w-0 flex-1 flex items-center gap-2.5">
                 <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/40 px-1.5 py-0.5 rounded shrink-0">
                   <Icon name="clock" className="w-3 h-3" />
-                  {item.time}
+                  {timeRange || '미정'}
                 </span>
                 <div className="min-w-0">
                   <div

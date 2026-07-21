@@ -17,7 +17,8 @@ import {
 import { CalendarModal } from './CalendarModal';
 
 const BLANK_FORM: ScheduleFormState = {
-  time: '12:00',
+  time: undefined,
+  endTime: undefined,
   locationName: '',
   displayName: '',
   category: 'sightseeing',
@@ -26,6 +27,7 @@ const BLANK_FORM: ScheduleFormState = {
 
 const toForm = (item: ScheduleItem): ScheduleFormState => ({
   time: item.time,
+  endTime: item.endTime,
   locationName: item.locationName,
   displayName: item.displayName ?? '',
   category: item.category,
@@ -36,8 +38,9 @@ const toForm = (item: ScheduleItem): ScheduleFormState => ({
 const isValidLatLng = (loc?: GeoLocation): loc is GeoLocation =>
   !!loc && !(loc.lat === 0 && loc.lng === 0);
 
-const sortByTime = <T extends { time: string }>(list: T[]): T[] =>
-  [...list].sort((a, b) => a.time.localeCompare(b.time));
+// 표시 순서는 항상 명시적 sortOrder 기준(시간 아님 — 느슨한 일정 지원).
+const sortByOrder = <T extends { sortOrder: number }>(list: T[]): T[] =>
+  [...list].sort((a, b) => a.sortOrder - b.sortOrder);
 
 export function Dashboard() {
   const trip = useTripStore((s) => s.activeTrip);
@@ -64,7 +67,7 @@ export function Dashboard() {
   const safeIndex = activeDayIndex < days.length ? activeDayIndex : 0;
   const activeDay = days[safeIndex] ?? null;
 
-  const schedules = useMemo(() => sortByTime(activeDay?.items ?? []), [activeDay]);
+  const schedules = useMemo(() => sortByOrder(activeDay?.items ?? []), [activeDay]);
   const totalPlaces = useMemo(() => days.reduce((acc, d) => acc + d.items.length, 0), [days]);
   const tripId = trip?.id;
 
@@ -83,7 +86,7 @@ export function Dashboard() {
 
   useEffect(() => {
     setExploreLocation(null);
-    const items = sortByTime(days[safeIndex]?.items ?? []);
+    const items = sortByOrder(days[safeIndex]?.items ?? []);
     if (items.length > 0) {
       setActiveScheduleId(items[0].id);
       setEditorMode('view');
@@ -155,6 +158,7 @@ export function Dashboard() {
     }
     const payload = {
       time: form.time,
+      endTime: form.endTime,
       locationName: form.locationName.trim(),
       displayName: form.displayName.trim(),
       category: form.category,
@@ -177,7 +181,7 @@ export function Dashboard() {
   const handleDelete = async () => {
     if (!activeScheduleId) return;
     setExploreLocation(null);
-    const remaining = sortByTime(activeDay.items.filter((i) => i.id !== activeScheduleId));
+    const remaining = sortByOrder(activeDay.items.filter((i) => i.id !== activeScheduleId));
     await removeItem(activeDay.date, activeScheduleId);
     if (remaining[0]) {
       setActiveScheduleId(remaining[0].id);

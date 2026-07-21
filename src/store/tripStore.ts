@@ -13,7 +13,8 @@ type CreateTripInput = {
 };
 
 export type ItemInput = {
-  time: string;
+  time?: string;
+  endTime?: string;
   locationName: string;
   displayName: string;
   category: Category;
@@ -39,12 +40,14 @@ type TripState = {
   addItem: (date: string, input: ItemInput) => Promise<string | null>;
   updateItem: (date: string, itemId: string, input: ItemInput) => Promise<void>;
   removeItem: (date: string, itemId: string) => Promise<void>;
+  reorderItems: (date: string, orderedIds: string[]) => Promise<void>;
 };
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
 
 const toPayload = (input: ItemInput): ItemPayload => ({
   time: input.time,
+  endTime: input.endTime,
   locationName: input.locationName,
   displayName: input.displayName,
   category: input.category,
@@ -158,6 +161,18 @@ export const useTripStore = create<TripState>((set, get) => {
         await refreshActive();
       } catch (e) {
         set({ error: errMsg(e) });
+      }
+    },
+
+    reorderItems: async (date, orderedIds) => {
+      const id = get().activeTripId;
+      if (!id) return;
+      try {
+        // 서버가 재배치된 여행 전체를 돌려주므로 그대로 캐시에 반영.
+        set({ activeTrip: await api.reorderItems(id, date, orderedIds) });
+      } catch (e) {
+        set({ error: errMsg(e) });
+        await refreshActive(); // 실패 시 서버 상태로 롤백.
       }
     },
   };

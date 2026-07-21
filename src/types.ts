@@ -10,14 +10,19 @@ export type GeoLocation = {
 /** 하루 안의 일정 한 건 */
 export type ScheduleItem = {
   id: string;
-  time: string; // 'HH:MM'
+  /** 시작 시각 'HH:MM'. 없으면 느슨한 일정(순서만 보존). */
+  time?: string;
+  /** 종료 시각 'HH:MM'(선택). */
+  endTime?: string;
+  /** 하루 안의 표시 순서. 시간과 무관한 원본 순서(드래그로 변경). */
+  sortOrder: number;
   /** 장소명 (기본 이름) */
   locationName: string;
   /** 표기명 — 비우면 장소명을 사용 */
   displayName: string;
   category: Category;
   notes: string;
-  /** 위경도 — 지도 클릭/네이버 검색 결과 선택 시 채워짐. 없으면 지도에 표시되지 않음. */
+  /** 위경도 — 네이버 검색 결과 선택 시 채워짐. 없으면 지도에 표시되지 않음. */
   location?: GeoLocation;
 };
 

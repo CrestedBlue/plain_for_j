@@ -8,9 +8,10 @@ export type TripSummary = {
   endDate: string;
 };
 
-/** 일정 추가/수정 요청 본문 */
+/** 일정 추가/수정 요청 본문. time/endTime은 선택(비면 느슨한 일정). */
 export type ItemPayload = {
-  time: string;
+  time?: string;
+  endTime?: string;
   locationName: string;
   displayName: string;
   category: string;
@@ -67,4 +68,11 @@ export const api = {
 
   deleteItem: (tripId: string, date: string, itemId: string) =>
     request<unknown>(`/trips/${tripId}/days/${date}/items/${itemId}`, { method: 'DELETE' }),
+
+  /** 하루 안의 일정 순서를 orderedIds 순서대로 재배치. 갱신된 여행 전체를 반환. */
+  reorderItems: (tripId: string, date: string, orderedIds: string[]) =>
+    request<Trip>(`/trips/${tripId}/days/${date}/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ orderedIds }),
+    }),
 };

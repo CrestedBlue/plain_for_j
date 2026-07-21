@@ -1,6 +1,7 @@
 import { type FormEvent } from 'react';
 import type { Category } from '../../lib/categories';
 import type { PlaceResult } from '../../lib/places';
+import { formatTimeRange } from '../../lib/schedule';
 import type { GeoLocation } from '../../types';
 import { Icon } from '../icons/Icon';
 import { PlaceAutocomplete } from './PlaceAutocomplete';
@@ -8,7 +9,10 @@ import { PlaceAutocomplete } from './PlaceAutocomplete';
 // import { CommentThread } from './CommentThread';
 
 export type ScheduleFormState = {
-  time: string;
+  /** 시작 시각 'HH:MM'(선택 — 비면 느슨한 일정). */
+  time?: string;
+  /** 종료 시각 'HH:MM'(선택). */
+  endTime?: string;
   locationName: string;
   displayName: string;
   category: Category;
@@ -50,6 +54,7 @@ export function ScheduleEditor(props: Props) {
 function ViewCard({ form, onEnterEdit, onDelete }: Props) {
   const name = displayedName(form);
   const hasAlias = form.displayName.trim().length > 0;
+  const timeRange = formatTimeRange(form);
 
   return (
     <div className={cardClass}>
@@ -67,7 +72,7 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/40 px-2 py-0.5 rounded">
             <Icon name="clock" className="w-3.5 h-3.5" />
-            {form.time}
+            {timeRange || '시간 미정'}
           </span>
         </div>
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">{name || '장소 미지정'}</h3>
@@ -113,6 +118,8 @@ function ViewCard({ form, onEnterEdit, onDelete }: Props) {
 /* ── 수정 / 추가 (편집 폼) ────────────────────────────────── */
 function EditForm({ mode, form, onPatch, onSelectPlace, onSubmit, onCancelEdit }: Props) {
   const isEdit = mode === 'edit';
+  // 종료가 시작보다 이르면 경고만(막지 않음).
+  const endBeforeStart = !!form.time && !!form.endTime && form.endTime < form.time;
 
   return (
     <div className={cardClass}>
@@ -161,13 +168,39 @@ function EditForm({ mode, form, onPatch, onSelectPlace, onSubmit, onCancelEdit }
         </div>
 
         <div>
-          <label className={labelClass}>방문 시각</label>
-          <input
-            type="time"
-            value={form.time}
-            onChange={(e) => onPatch({ time: e.target.value })}
-            className={inputClass}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>
+                시작 시각 <span className="text-slate-400 dark:text-slate-600 font-normal">(선택)</span>
+              </label>
+              <input
+                type="time"
+                value={form.time ?? ''}
+                onChange={(e) => onPatch({ time: e.target.value || undefined })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                종료 시각 <span className="text-slate-400 dark:text-slate-600 font-normal">(선택)</span>
+              </label>
+              <input
+                type="time"
+                value={form.endTime ?? ''}
+                onChange={(e) => onPatch({ endTime: e.target.value || undefined })}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+            비워두면 시간 없는 느슨한 일정이 됩니다. 순서는 목록에서 드래그로 바꿔요.
+          </p>
+          {endBeforeStart && (
+            <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              <Icon name="info" className="w-3.5 h-3.5" />
+              종료 시각이 시작보다 이릅니다.
+            </p>
+          )}
         </div>
 
         <div>
