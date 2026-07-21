@@ -1,5 +1,22 @@
 import { useEffect, useRef } from 'react';
-import { formatTimeRange } from '../../lib/schedule';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { findTimeConflicts, formatTimeRange } from '../../lib/schedule';
 import { scheduleName, type ScheduleItem } from '../../types';
 import { Icon } from '../icons/Icon';
 
@@ -8,10 +25,19 @@ type Props = {
   activeScheduleId: string;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  /** 드래그로 새 순서가 확정되면 그 순서대로의 id 배열로 호출. */
+  onReorder: (orderedIds: string[]) => void;
 };
 
-export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDelete }: Props) {
+export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDelete, onReorder }: Props) {
   const activeRef = useRef<HTMLDivElement | null>(null);
+  const conflicts = findTimeConflicts(schedules);
+
+  const sensors = useSensors(
+    // 드래그는 6px 이동 후 시작 → 탭(선택)·목록 스크롤과 충돌 없음.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // 활성 일정이 바뀌면(추가/선택) 해당 카드가 뷰포트 안으로 들어오도록 부드럽게 스크롤.
   useEffect(() => {
@@ -31,68 +57,140 @@ export function ScheduleTimeline({ schedules, activeScheduleId, onSelect, onDele
     );
   }
 
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = schedules.map((s) => s.id);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    onReorder(arrayMove(ids, from, to));
+  };
+
   return (
-    <div className="relative border-l-2 border-slate-200 dark:border-slate-700/60 ml-3 pl-5 space-y-2">
-      {schedules.map((item) => {
-        const isActive = item.id === activeScheduleId;
-        const hasAlias = (item.displayName ?? '').trim().length > 0;
-        const timeRange = formatTimeRange(item);
-        return (
-          <div
-            key={item.id}
-            ref={isActive ? activeRef : undefined}
-            onClick={() => onSelect(item.id)}
-            className={`relative group cursor-pointer p-2.5 rounded-lg border transition-colors ${
-              isActive
-                ? 'bg-indigo-50 border-indigo-400 dark:bg-slate-800 dark:border-indigo-500/80'
-                : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-700/50 dark:hover:bg-slate-800/60'
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={schedules.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+        <div className="relative border-l-2 border-slate-200 dark:border-slate-700/60 ml-3 pl-5 space-y-2">
+          {schedules.map((item) => (
+            <SortableRow
+              key={item.id}
+              item={item}
+              isActive={item.id === activeScheduleId}
+              isConflict={conflicts.has(item.id)}
+              activeRef={activeRef}
+              onSelect={onSelect}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+type RowProps = {
+  item: ScheduleItem;
+  isActive: boolean;
+  isConflict: boolean;
+  activeRef: React.MutableRefObject<HTMLDivElement | null>;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+};
+
+function SortableRow({ item, isActive, isConflict, activeRef, onSelect, onDelete }: RowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const hasAlias = (item.displayName ?? '').trim().length > 0;
+  const timeRange = formatTimeRange(item);
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : undefined,
+    opacity: isDragging ? 0.85 : undefined,
+  };
+
+  return (
+    <div
+      ref={(node) => {
+        setNodeRef(node);
+        if (isActive) activeRef.current = node;
+      }}
+      style={style}
+      onClick={() => onSelect(item.id)}
+      className={`relative group cursor-pointer p-2.5 rounded-lg border transition-colors ${
+        isActive
+          ? 'bg-indigo-50 border-indigo-400 dark:bg-slate-800 dark:border-indigo-500/80'
+          : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-700/50 dark:hover:bg-slate-800/60'
+      } ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <span
+        className={`absolute -left-[27px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-4 border-white dark:border-slate-900 ${
+          isActive ? 'bg-indigo-500 ring-4 ring-indigo-500/20' : 'bg-slate-400 dark:bg-slate-600'
+        }`}
+      />
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="순서 변경 드래그"
+            title="드래그해서 순서 변경"
+            className="shrink-0 -ml-1 p-1 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing touch-none"
+          >
+            <Icon name="grip" className="w-4 h-4" />
+          </button>
+
+          <span
+            className={`flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+              isConflict
+                ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10'
+                : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-950/40'
             }`}
           >
+            <Icon name="clock" className="w-3 h-3" />
+            {timeRange || '미정'}
+          </span>
+
+          {isConflict && (
             <span
-              className={`absolute -left-[27px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-4 border-white dark:border-slate-900 ${
-                isActive ? 'bg-indigo-500 ring-4 ring-indigo-500/20' : 'bg-slate-400 dark:bg-slate-600'
+              className="shrink-0 text-rose-500 dark:text-rose-400"
+              title="시간이 앞뒤 순서와 맞지 않아요. 시간을 고치거나 순서를 옮겨보세요."
+            >
+              <Icon name="alert" className="w-4 h-4" />
+            </span>
+          )}
+
+          <div className="min-w-0">
+            <div
+              className={`text-sm font-semibold truncate ${
+                isActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-100'
               }`}
-            />
-
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1 flex items-center gap-2.5">
-                <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/40 px-1.5 py-0.5 rounded shrink-0">
-                  <Icon name="clock" className="w-3 h-3" />
-                  {timeRange || '미정'}
-                </span>
-                <div className="min-w-0">
-                  <div
-                    className={`text-sm font-semibold truncate ${
-                      isActive
-                        ? 'text-indigo-700 dark:text-indigo-400'
-                        : 'text-slate-800 dark:text-slate-100'
-                    }`}
-                  >
-                    {scheduleName(item)}
-                  </div>
-                  {hasAlias && (
-                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
-                      <Icon name="map-pin" className="w-3 h-3 shrink-0" />
-                      {item.locationName}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(item.id);
-                }}
-                className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition"
-                title="삭제"
-              >
-                <Icon name="trash" className="w-4 h-4" />
-              </button>
+            >
+              {scheduleName(item)}
             </div>
+            {hasAlias && (
+              <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                <Icon name="map-pin" className="w-3 h-3 shrink-0" />
+                {item.locationName}
+              </div>
+            )}
           </div>
-        );
-      })}
+        </div>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
+          className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition"
+          title="삭제"
+        >
+          <Icon name="trash" className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

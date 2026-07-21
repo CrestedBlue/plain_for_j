@@ -49,6 +49,7 @@ export function Dashboard() {
   const addItem = useTripStore((s) => s.addItem);
   const updateItem = useTripStore((s) => s.updateItem);
   const removeItem = useTripStore((s) => s.removeItem);
+  const reorderItems = useTripStore((s) => s.reorderItems);
 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [activeScheduleId, setActiveScheduleId] = useState('');
@@ -318,6 +319,7 @@ export function Dashboard() {
                 if (id === activeScheduleId) handleDelete();
                 else removeItem(activeDay.date, id);
               }}
+              onReorder={(orderedIds) => reorderItems(activeDay.date, orderedIds)}
             />
 
             <div ref={editorSectionRef} className="scroll-mt-24">
