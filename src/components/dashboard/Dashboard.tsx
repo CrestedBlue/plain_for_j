@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTripStore } from '../../store/tripStore';
 import { todayISO } from '../../lib/dates';
-import { searchPlaces, type PlaceResult } from '../../lib/places';
+import { type PlaceResult } from '../../lib/places';
 import { useTheme } from '../../lib/theme';
 import type { GeoLocation, ScheduleItem } from '../../types';
-import type { MapClickPayload } from '../map/MapPanel';
 import { Icon } from '../icons/Icon';
 import { MapPanel } from '../map/MapPanel';
 import { DayTabs } from './DayTabs';
@@ -53,10 +52,7 @@ export function Dashboard() {
   const [editorMode, setEditorMode] = useState<EditorMode>('add');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [form, setForm] = useState<ScheduleFormState>(BLANK_FORM);
-  // 지도 클릭 → 리버스지오코드 → 자동 지역검색으로 얻은 후보들. PlaceSearch에 주입.
-  const [probeResults, setProbeResults] = useState<PlaceResult[]>([]);
-  const [probeQuery, setProbeQuery] = useState<string>('');
-  // 탐색용 임시 위치(폼과 무관). 지도 클릭·검색 결과 탐색 시 세팅 → 지도에 점선 핀 표시.
+  // 탐색용 임시 위치(폼과 무관). 검색 결과 탐색 시 세팅 → 지도에 점선 핀 표시.
   const [exploreLocation, setExploreLocation] = useState<GeoLocation | null>(null);
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
   const editorSectionRef = useRef<HTMLDivElement | null>(null);
@@ -230,46 +226,6 @@ export function Dashboard() {
     scrollEditorIntoViewOnMobile();
   };
 
-  const handleMapClick = async (p: MapClickPayload) => {
-    const clickedName = p.name?.trim() ?? '';
-
-    if (editorMode === 'view') {
-      // 조회 중 지도 클릭 = 탐색. 폼/모드는 건드리지 않고 임시 핀 + 근처 후보만 띄운다.
-      setExploreLocation({ name: clickedName || '지도 지정 위치', lat: p.lat, lng: p.lng });
-      if (!clickedName) {
-        setProbeResults([]);
-        setProbeQuery('');
-        return;
-      }
-      try {
-        setProbeQuery(clickedName);
-        setProbeResults(await searchPlaces(clickedName));
-      } catch {
-        setProbeResults([]);
-      }
-      return;
-    }
-
-    // 추가/수정 모드 = 편집 의도가 확실 → 좌표를 폼에 반영.
-    const baseName = clickedName || form.locationName.trim() || '지도 지정 장소';
-    patchForm({
-      locationName: baseName,
-      location: { name: baseName, lat: p.lat, lng: p.lng },
-    });
-    // 근처 후보를 검색해 다른 이름으로 교체할 수 있게 노출(자동 덮어쓰기는 하지 않음).
-    if (!clickedName) {
-      setProbeResults([]);
-      setProbeQuery('');
-      return;
-    }
-    try {
-      setProbeQuery(clickedName);
-      setProbeResults(await searchPlaces(clickedName));
-    } catch {
-      setProbeResults([]);
-    }
-  };
-
   const handleCalendarDayClick = (dateString: string) => {
     const idx = days.findIndex((d) => d.date === dateString);
     if (idx >= 0) {
@@ -394,21 +350,17 @@ export function Dashboard() {
                 newLat={pinLocation?.lat ?? 0}
                 newLng={pinLocation?.lng ?? 0}
                 dayLabel={dayLabel}
-                onMapClick={handleMapClick}
                 onPinClick={selectSchedule}
               />
             </div>
 
             {/* 지도 아래: 지도 탐색용 검색. 결과 탭=지도에서 위치 확인(폼 불변),
-                ＋=새 일정 추가, (편집 중일 때) 변경=편집 폼 장소 교체.
-                지도 클릭으로 자동 검색된 결과(probeResults)는 externalResults로 주입. */}
+                ＋=새 일정 추가, (편집 중일 때) 변경=편집 폼 장소 교체. */}
             <PlaceSearch
               onExplore={handleExplorePlace}
               onAddAsNew={handleAddPlaceAsNew}
               onApplyToForm={handleApplyPlaceFromSearch}
               isEditing={isEditing}
-              externalResults={probeResults}
-              externalQuery={probeQuery}
             />
           </div>
         </div>

@@ -14,8 +14,6 @@ type Props = {
   dayKey: string;
   newLat: number;
   newLng: number;
-  /** 지도 클릭 시 위경도 + (리버스 지오코드로 추출한) 근처 장소/건물명. 실패 시 name 미지정. */
-  onMapClick: (lat: number, lng: number, name?: string) => void;
   onPinClick: (id: string) => void;
 };
 
@@ -35,24 +33,6 @@ type Naver = {
       removeListener: (listener: unknown) => void;
     };
     Position: { RIGHT_TOP: unknown };
-    Service: {
-      reverseGeocode: (
-        opts: { coords: unknown; orders?: string },
-        cb: (status: number, response: ReverseGeocodeResponse) => void,
-      ) => void;
-      OrderType: { ADDR: string; ROAD_ADDR: string };
-      Status: { OK: number };
-    };
-  };
-};
-
-type ReverseGeocodeResponse = {
-  v2?: {
-    address?: {
-      roadAddress?: string;
-      jibunAddress?: string;
-    };
-    results?: Array<{ name?: string; region?: { area1?: { name?: string } } }>;
   };
 };
 
@@ -75,29 +55,8 @@ type NaverInfoWindowInstance = {
   open: (map: NaverMapInstance, anchor: unknown) => void;
   close: () => void;
 };
-type Coord = { x: number; y: number };
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 } as const;
-
-/**
- * 리버스 지오코드 응답에서 사람이 검색어로 쓸 만한 짧은 이름을 뽑는다.
- * 우선순위: 도로명주소 괄호 안 마지막 토큰(=건물명) → 괄호 제거한 도로명주소 → 지번주소.
- * 예) "서울특별시 강남구 테헤란로 152 (역삼동, 강남파이낸스센터)" → "강남파이낸스센터"
- */
-function extractPlaceName(res: ReverseGeocodeResponse): string {
-  const road = res.v2?.address?.roadAddress ?? '';
-  const jibun = res.v2?.address?.jibunAddress ?? '';
-  const paren = road.match(/\(([^()]*)\)/);
-  if (paren) {
-    const parts = paren[1]
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
-  }
-  const stripped = road.replace(/\s*\([^()]*\)\s*/g, '').trim();
-  return stripped || jibun.trim();
-}
 
 /** 위경도가 유효(0/0이 아님)한 일정만 걸러낸다. */
 function withLocation(schedules: ScheduleItem[]): ScheduleItem[] {
@@ -110,7 +69,7 @@ function withLocation(schedules: ScheduleItem[]): ScheduleItem[] {
  * - 위경도가 있는 일정만 지도에 표시(없으면 렌더 스킵).
  * - `dayKey` 변화 시 그날 일정 전체가 보이게 fitBounds, `activeScheduleId` 변화 시 해당 마커로 panTo.
  * - 일정 순서를 잇는 경로선(Polyline), 마커 클릭 시 InfoWindow, 앱 다크/라이트 테마 동기화 포함.
- * - 지도 클릭 시 lat/lng을 부모로 넘김.
+ * - 표시 전용(지도 클릭 상호작용 없음). 빈 지도 클릭 시 열린 InfoWindow만 닫는다.
  */
 export function NaverMap({
   clientId,
@@ -119,7 +78,6 @@ export function NaverMap({
   dayKey,
   newLat,
   newLng,
-  onMapClick,
   onPinClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -150,33 +108,9 @@ export function NaverMap({
         });
         mapRef.current = map;
         infoWindowRef.current = new naver.maps.InfoWindow({ content: '', borderWidth: 0, backgroundColor: 'transparent' });
-        clickListenerRef.current = naver.maps.Event.addListener(map, 'click', (raw) => {
+        // 표시 전용 지도: 빈 곳 클릭 시 열려 있던 InfoWindow만 닫는다.
+        clickListenerRef.current = naver.maps.Event.addListener(map, 'click', () => {
           infoWindowRef.current?.close();
-          const e = raw as { coord: Coord };
-          // 네이버 지도: coord.x = 경도(lng), coord.y = 위도(lat)
-          const lat = e.coord.y;
-          const lng = e.coord.x;
-          // POI 라벨 클릭 이벤트는 v3 SDK가 노출하지 않는다.
-          // 대신 좌표를 리버스 지오코드해 근처의 건물명/도로명을 얻어 부모에게 전달 →
-          // 부모(Dashboard)는 그 이름으로 자동 지역검색을 실행해 첫 결과를 폼에 반영한다.
-          try {
-            naver.maps.Service.reverseGeocode(
-              {
-                coords: new naver.maps.LatLng(lat, lng),
-                orders: [naver.maps.Service.OrderType.ROAD_ADDR, naver.maps.Service.OrderType.ADDR].join(','),
-              },
-              (status, response) => {
-                if (status !== naver.maps.Service.Status.OK) {
-                  onMapClick(lat, lng);
-                  return;
-                }
-                const name = extractPlaceName(response);
-                onMapClick(lat, lng, name || undefined);
-              },
-            );
-          } catch {
-            onMapClick(lat, lng);
-          }
         });
         setReady(true);
       })

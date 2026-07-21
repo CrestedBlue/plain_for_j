@@ -129,7 +129,7 @@ function EditForm({ mode, form, onPatch, onSelectPlace, onSubmit, onCancelEdit }
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white">{isEdit ? '일정 수정' : '새 일정 추가'}</h4>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            <strong className="text-indigo-600 dark:text-indigo-300">장소명을 입력</strong>하면 자동 검색됩니다. 지도 클릭이나 아래 검색으로도 지정할 수 있어요.
+            <strong className="text-indigo-600 dark:text-indigo-300">장소명을 입력</strong>하면 자동 검색됩니다. 아래 검색 결과로도 지정할 수 있어요.
           </p>
         </div>
       </div>

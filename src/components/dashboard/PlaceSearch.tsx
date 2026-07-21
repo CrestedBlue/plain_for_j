@@ -11,12 +11,6 @@ type Props = {
   onApplyToForm?: (place: PlaceResult) => void;
   /** 현재 추가/수정(편집) 모드인지 — true면 "이 장소로 변경" 버튼 노출. */
   isEditing: boolean;
-  /**
-   * 외부(지도 클릭 자동 검색)에서 주입한 결과.
-   * 자체 검색 결과보다 우선 표시하며, 배너에 원본 질의도 함께 노출.
-   */
-  externalResults?: PlaceResult[];
-  externalQuery?: string;
 };
 
 /**
@@ -34,8 +28,6 @@ export function PlaceSearch({
   onAddAsNew,
   onApplyToForm,
   isEditing,
-  externalResults,
-  externalQuery,
 }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
@@ -43,9 +35,7 @@ export function PlaceSearch({
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
-  // 외부 주입 결과가 있으면 그것을 우선 표시.
-  const displayResults = externalResults && externalResults.length > 0 ? externalResults : results;
-  const showExternal = !!externalResults && externalResults.length > 0;
+  const displayResults = results;
 
   const runSearch = async () => {
     const q = query.trim();
@@ -112,14 +102,7 @@ export function PlaceSearch({
         </p>
       )}
 
-      {showExternal && (
-        <p className="text-[11px] text-sky-700 dark:text-sky-300 flex items-center gap-1 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 px-2 py-1 rounded-md">
-          <Icon name="map-pin" className="w-3.5 h-3.5" />
-          지도 클릭 위치 근처 검색{externalQuery ? ` · "${externalQuery}"` : ''}
-        </p>
-      )}
-
-      {touched && !loading && !error && results.length === 0 && !showExternal && (
+      {touched && !loading && !error && results.length === 0 && (
         <p className="text-xs text-slate-500">결과가 없습니다.</p>
       )}
 

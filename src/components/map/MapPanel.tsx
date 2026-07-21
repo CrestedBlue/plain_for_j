@@ -1,9 +1,6 @@
 import type { ScheduleItem } from '../../types';
 import { NaverMap } from './NaverMap';
 
-/** 지도 클릭 페이로드 — 위경도 + (리버스 지오코드로 추출한) 근처 장소/건물명(있으면). */
-export type MapClickPayload = { lat: number; lng: number; name?: string };
-
 type Props = {
   schedules: ScheduleItem[];
   activeScheduleId: string;
@@ -11,7 +8,6 @@ type Props = {
   newLat?: number;
   newLng?: number;
   dayLabel: string;
-  onMapClick: (payload: MapClickPayload) => void;
   onPinClick: (id: string) => void;
 };
 
@@ -23,7 +19,6 @@ export function MapPanel({
   newLat = 0,
   newLng = 0,
   dayLabel,
-  onMapClick,
   onPinClick,
 }: Props) {
   return (
@@ -35,7 +30,6 @@ export function MapPanel({
         dayKey={dayLabel}
         newLat={newLat}
         newLng={newLng}
-        onMapClick={(lat, lng, name) => onMapClick({ lat, lng, name })}
         onPinClick={onPinClick}
       />
 
