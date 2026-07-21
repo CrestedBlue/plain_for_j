@@ -38,7 +38,9 @@ CREATE TABLE days (
 CREATE TABLE schedule_items (
   id            CHAR(36)     NOT NULL,
   day_id        CHAR(36)     NOT NULL,
-  time          VARCHAR(5)   NOT NULL,            -- 'HH:MM'
+  time          VARCHAR(5)   NULL,                -- 시작 'HH:MM' (공백 = 느슨한 일정, 순서만 보존)
+  end_time      VARCHAR(5)   NULL,                -- 종료 'HH:MM' (선택)
+  sort_order    INT          NOT NULL DEFAULT 0,  -- 하루 안의 표시 순서(드래그로 변경). time과 무관한 원본 순서.
   location_name VARCHAR(200) NOT NULL,
   display_name  VARCHAR(200) NOT NULL DEFAULT '', -- 비우면 location_name 사용
   category      ENUM('sightseeing','restaurant','cafe','accommodation','shopping') NOT NULL,
