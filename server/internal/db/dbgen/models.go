@@ -65,7 +65,9 @@ type Day struct {
 type ScheduleItem struct {
 	ID           string                `json:"id"`
 	DayID        string                `json:"day_id"`
-	Time         string                `json:"time"`
+	Time         sql.NullString        `json:"time"`
+	EndTime      sql.NullString        `json:"end_time"`
+	SortOrder    int32                 `json:"sort_order"`
 	LocationName string                `json:"location_name"`
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`

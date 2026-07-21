@@ -42,9 +42,10 @@ func TestTripRoundTrip(t *testing.T) {
 		t.Fatalf("dates = %v", []string{created.Days[0].Date, created.Days[2].Date})
 	}
 
-	// 2) 일정 추가(위경도 포함)
+	// 2) 일정 추가(시작·종료 시각 + 위경도 포함)
 	added, err := svc.AddItem(ctx, created.ID, "2026-07-01", ItemInput{
-		Time:         "09:00",
+		Time:         strptr("09:00"),
+		EndTime:      strptr("10:30"),
 		LocationName: "경복궁",
 		Category:     "sightseeing",
 		Notes:        "수문장 교대식",
@@ -64,17 +65,55 @@ func TestTripRoundTrip(t *testing.T) {
 	if loc := got.Days[0].Items[0].Location; loc == nil || loc.Lat == 0 {
 		t.Fatalf("location not persisted: %+v", got.Days[0].Items[0])
 	}
+	if et := got.Days[0].Items[0].EndTime; et == nil || *et != "10:30" {
+		t.Fatalf("endTime not persisted: %+v", got.Days[0].Items[0])
+	}
 
-	// 3) 수정: 위경도 제거 + 시간 변경
+	// 2b) 느슨한 둘째 일정(시간 없음) 추가 → 맨 끝(순서 1)
+	second, err := svc.AddItem(ctx, created.ID, "2026-07-01", ItemInput{
+		LocationName: "청계천", Category: "sightseeing",
+	})
+	if err != nil {
+		t.Fatalf("AddItem second: %v", err)
+	}
+	got, _ = svc.GetTrip(ctx, created.ID)
+	if n := len(got.Days[0].Items); n != 2 {
+		t.Fatalf("items = %d, want 2", n)
+	}
+	if got.Days[0].Items[0].ID != added.ID || got.Days[0].Items[1].ID != second.ID {
+		t.Fatalf("order before reorder unexpected")
+	}
+	if got.Days[0].Items[1].Time != nil {
+		t.Fatalf("second item should be loose (time nil): %+v", got.Days[0].Items[1])
+	}
+
+	// 2c) 순서 뒤집기 → second, added
+	if _, err := svc.ReorderItems(ctx, created.ID, "2026-07-01", []string{second.ID, added.ID}); err != nil {
+		t.Fatalf("ReorderItems: %v", err)
+	}
+	got, _ = svc.GetTrip(ctx, created.ID)
+	if got.Days[0].Items[0].ID != second.ID || got.Days[0].Items[1].ID != added.ID {
+		t.Fatalf("reorder not applied: %v", []string{got.Days[0].Items[0].ID, got.Days[0].Items[1].ID})
+	}
+
+	// 이후 단계를 위해 둘째 일정 정리
+	if err := svc.DeleteItem(ctx, second.ID); err != nil {
+		t.Fatalf("DeleteItem second: %v", err)
+	}
+
+	// 3) 수정: 위경도 제거 + 시간 변경(종료시각은 비워 NULL로)
 	if _, err := svc.UpdateItem(ctx, created.ID, "2026-07-01", added.ID, ItemInput{
-		Time: "10:00", LocationName: "덕수궁", Category: "sightseeing",
+		Time: strptr("10:00"), LocationName: "덕수궁", Category: "sightseeing",
 	}); err != nil {
 		t.Fatalf("UpdateItem: %v", err)
 	}
 	got, _ = svc.GetTrip(ctx, created.ID)
 	it := got.Days[0].Items[0]
-	if it.Time != "10:00" || it.LocationName != "덕수궁" || it.Location != nil {
+	if it.Time == nil || *it.Time != "10:00" || it.LocationName != "덕수궁" || it.Location != nil {
 		t.Fatalf("update not applied: %+v", it)
+	}
+	if it.EndTime != nil {
+		t.Fatalf("endTime should be cleared: %+v", it)
 	}
 
 	// 4) 일정 삭제
@@ -114,3 +153,5 @@ func TestCreateTripValidation(t *testing.T) {
 		t.Fatalf("bad date err = %v, want ErrInvalidInput", err)
 	}
 }
+
+func strptr(s string) *string { return &s }

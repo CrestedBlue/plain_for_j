@@ -22,6 +22,9 @@ func (s *Server) registerTripRoutes(api *gin.RouterGroup) {
 	items.POST("", s.addItem)
 	items.PUT("/:itemId", s.updateItem)
 	items.DELETE("/:itemId", s.deleteItem)
+
+	// 순서 변경은 items(/:itemId)와 경로가 겹치지 않도록 형제 경로로 둔다.
+	t.PUT("/:id/days/:date/reorder", s.reorderItems)
 }
 
 func (s *Server) listTrips(c *gin.Context) {
@@ -112,6 +115,20 @@ func (s *Server) deleteItem(c *gin.Context) {
 		return
 	}
 	ok(c, gin.H{"deleted": true})
+}
+
+func (s *Server) reorderItems(c *gin.Context) {
+	var in trip.ReorderInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	t, err := s.trips.ReorderItems(c.Request.Context(), c.Param("id"), c.Param("date"), in.OrderedIDs)
+	if err != nil {
+		s.respondServiceErr(c, err)
+		return
+	}
+	ok(c, t)
 }
 
 // respondServiceErr는 서비스 에러를 적절한 HTTP 상태로 매핑한다.

@@ -16,7 +16,13 @@
 ### Trip CRUD (P1)
 - `GET /api/trips`, `POST /api/trips`, `GET/PUT/DELETE /api/trips/{id}`
 - 일정 항목: `POST/PUT/DELETE /api/trips/{id}/days/{date}/items/{itemId}`
+- 일정 순서 변경: `PUT /api/trips/{id}/days/{date}/reorder` — body `{orderedIds:[...]}`, 그 순서대로 `sort_order` 재부여(트랜잭션). 시간 역전은 검증 안 함(프론트 소프트 경고 정책).
 - sqlc 쿼리 + service(Repository 패턴) + gin 핸들러.
+
+### 일정 시간·순서 모델 (2026-07-21)
+- `time`(시작)·`end_time`(종료) 모두 **선택**(nullable). 비면 느슨한 일정 = 순서만 보존.
+- `sort_order`(INT) 명시 컬럼이 하루 안의 표시 순서. 신규 항목은 `NextSortOrder`로 그 날 맨 끝에 append.
+- 시간 지정 항목의 순서 역전 차단은 **서버에서 안 함** — 프론트가 어긋난 항목에 경고 아이콘만 표시.
 
 ### 인증 (P2) — 소셜 OAuth
 - `GET /api/auth/{provider}` 인가 시작 → `GET /api/auth/{provider}/callback` 인가코드→토큰교환→프로필 조회→`users` upsert→**JWT HttpOnly 쿠키** 발급.
@@ -37,4 +43,4 @@
 
 ## DB 스키마 (현재)
 
-`users` / `trips` / `days` / `schedule_items` — UUID(CHAR(36)) PK, FK, `category` ENUM, `lat/lng` nullable, SVG `x/y` 보존. 원본: `server/internal/db/schema.sql`.
+`users` / `trips` / `days` / `schedule_items` — UUID(CHAR(36)) PK, FK, `category` ENUM(프론트 미표시·기본값만 저장), `time`/`end_time` nullable, `sort_order` INT, `lat/lng` nullable. 원본: `server/internal/db/schema.sql`. 실행 중 DB 변경은 `server/internal/db/migrations/*.sql` 손수 적용.

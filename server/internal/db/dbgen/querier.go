@@ -21,7 +21,9 @@ type Querier interface {
 	ListItemsByTrip(ctx context.Context, tripID string) ([]ListItemsByTripRow, error)
 	// Trip CRUD (P1). sqlc.arg로 명명 파라미터 사용.
 	ListTrips(ctx context.Context) ([]ListTripsRow, error)
+	NextSortOrder(ctx context.Context, dayID string) (int64, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) error
+	UpdateItemOrder(ctx context.Context, arg UpdateItemOrderParams) error
 	UpdateTripTitle(ctx context.Context, arg UpdateTripTitleParams) error
 }
 

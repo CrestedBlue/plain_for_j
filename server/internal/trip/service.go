@@ -114,7 +114,7 @@ func (s *Service) GetTrip(ctx context.Context, id string) (*Trip, error) {
 	for _, r := range itemRows {
 		key := r.Date.Format(dateLayout)
 		itemsByDate[key] = append(itemsByDate[key], toItemDTO(
-			r.ID, r.Time, r.LocationName, r.DisplayName, r.Category,
+			r.ID, r.Time, r.EndTime, r.SortOrder, r.LocationName, r.DisplayName, r.Category,
 			r.Notes, r.GeoName, r.Lat, r.Lng,
 		))
 	}
@@ -169,10 +169,17 @@ func (s *Service) AddItem(ctx context.Context, tripID, date string, in ItemInput
 	}
 	id := uuid.NewString()
 	geoName, lat, lng := fromGeo(in.Location)
+	// 새 일정은 그 날 맨 끝에 붙인다(순서만 명시, 시간은 선택).
+	nextOrder, err := s.q.NextSortOrder(ctx, dayID)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.q.CreateItem(ctx, dbgen.CreateItemParams{
 		ID:           id,
 		DayID:        dayID,
-		Time:         in.Time,
+		Time:         nullStr(in.Time),
+		EndTime:      nullStr(in.EndTime),
+		SortOrder:    int32(nextOrder),
 		LocationName: in.LocationName,
 		DisplayName:  in.DisplayName,
 		Category:     dbgen.ScheduleItemsCategory(in.Category),
@@ -198,7 +205,8 @@ func (s *Service) UpdateItem(ctx context.Context, tripID, date, itemID string, i
 	}
 	geoName, lat, lng := fromGeo(in.Location)
 	if err := s.q.UpdateItem(ctx, dbgen.UpdateItemParams{
-		Time:         in.Time,
+		Time:         nullStr(in.Time),
+		EndTime:      nullStr(in.EndTime),
 		LocationName: in.LocationName,
 		DisplayName:  in.DisplayName,
 		Category:     dbgen.ScheduleItemsCategory(in.Category),
@@ -223,6 +231,36 @@ func (s *Service) DeleteItem(ctx context.Context, itemID string) error {
 	return s.q.DeleteItem(ctx, itemID)
 }
 
+// ReorderItems는 하루 안의 일정 순서를 orderedIDs 순서대로 다시 매긴다.
+// 시간 역전 여부는 검증하지 않는다(프론트가 소프트 경고로만 표시하는 정책).
+func (s *Service) ReorderItems(ctx context.Context, tripID, date string, orderedIDs []string) (*Trip, error) {
+	dayID, err := s.resolveDayID(ctx, tripID, date)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck // 커밋 성공 시 no-op
+
+	qtx := s.q.WithTx(tx)
+	for i, id := range orderedIDs {
+		// day_id 가드로 그 날에 속한 항목만 갱신(엉뚱한 id는 무시).
+		if err := qtx.UpdateItemOrder(ctx, dbgen.UpdateItemOrderParams{
+			SortOrder: int32(i),
+			ID:        id,
+			DayID:     dayID,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.GetTrip(ctx, tripID)
+}
+
 // --- 내부 헬퍼 ---
 
 func (s *Service) resolveDayID(ctx context.Context, tripID, date string) (string, error) {
@@ -245,19 +283,24 @@ func (s *Service) getItemDTO(ctx context.Context, id string) (*ScheduleItem, err
 	if err != nil {
 		return nil, err
 	}
-	item := toItemDTO(r.ID, r.Time, r.LocationName, r.DisplayName, r.Category, r.Notes, r.GeoName, r.Lat, r.Lng)
+	item := toItemDTO(r.ID, r.Time, r.EndTime, r.SortOrder, r.LocationName, r.DisplayName, r.Category, r.Notes, r.GeoName, r.Lat, r.Lng)
 	return &item, nil
 }
 
 func toItemDTO(
-	id, t, locName, dispName string,
+	id string,
+	t, endT sql.NullString,
+	sortOrder int32,
+	locName, dispName string,
 	cat dbgen.ScheduleItemsCategory,
 	notes string,
 	geoName sql.NullString, lat, lng sql.NullFloat64,
 ) ScheduleItem {
 	item := ScheduleItem{
 		ID:           id,
-		Time:         t,
+		Time:         strPtr(t),
+		EndTime:      strPtr(endT),
+		SortOrder:    int(sortOrder),
 		LocationName: locName,
 		DisplayName:  dispName,
 		Category:     string(cat),
@@ -271,6 +314,23 @@ func toItemDTO(
 		item.Location = &GeoLocation{Name: name, Lat: lat.Float64, Lng: lng.Float64}
 	}
 	return item
+}
+
+// nullStr는 선택 문자열 포인터를 NULL 허용 컬럼 값으로 바꾼다(nil·빈문자열 = NULL).
+func nullStr(p *string) sql.NullString {
+	if p == nil || *p == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: *p, Valid: true}
+}
+
+// strPtr는 NULL 허용 컬럼 값을 선택 문자열 포인터로 바꾼다(NULL·빈문자열 = nil).
+func strPtr(ns sql.NullString) *string {
+	if !ns.Valid || ns.String == "" {
+		return nil
+	}
+	s := ns.String
+	return &s
 }
 
 func fromGeo(g *GeoLocation) (sql.NullString, sql.NullFloat64, sql.NullFloat64) {

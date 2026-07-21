@@ -28,16 +28,19 @@ func (q *Queries) CreateDay(ctx context.Context, arg CreateDayParams) error {
 
 const createItem = `-- name: CreateItem :exec
 INSERT INTO schedule_items
-  (id, day_id, time, location_name, display_name, category, notes, geo_name, lat, lng)
+  (id, day_id, time, end_time, sort_order, location_name, display_name, category, notes, geo_name, lat, lng)
 VALUES
   (?, ?, ?, ?, ?,
+   ?, ?,
    ?, ?, ?, ?, ?)
 `
 
 type CreateItemParams struct {
 	ID           string                `json:"id"`
 	DayID        string                `json:"day_id"`
-	Time         string                `json:"time"`
+	Time         sql.NullString        `json:"time"`
+	EndTime      sql.NullString        `json:"end_time"`
+	SortOrder    int32                 `json:"sort_order"`
 	LocationName string                `json:"location_name"`
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
@@ -52,6 +55,8 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) error {
 		arg.ID,
 		arg.DayID,
 		arg.Time,
+		arg.EndTime,
+		arg.SortOrder,
 		arg.LocationName,
 		arg.DisplayName,
 		arg.Category,
@@ -122,7 +127,7 @@ func (q *Queries) GetDayByTripAndDate(ctx context.Context, arg GetDayByTripAndDa
 }
 
 const getItem = `-- name: GetItem :one
-SELECT id, day_id, time, location_name, display_name, category, notes, geo_name, lat, lng
+SELECT id, day_id, time, end_time, sort_order, location_name, display_name, category, notes, geo_name, lat, lng
 FROM schedule_items
 WHERE id = ?
 `
@@ -130,7 +135,9 @@ WHERE id = ?
 type GetItemRow struct {
 	ID           string                `json:"id"`
 	DayID        string                `json:"day_id"`
-	Time         string                `json:"time"`
+	Time         sql.NullString        `json:"time"`
+	EndTime      sql.NullString        `json:"end_time"`
+	SortOrder    int32                 `json:"sort_order"`
 	LocationName string                `json:"location_name"`
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
@@ -147,6 +154,8 @@ func (q *Queries) GetItem(ctx context.Context, id string) (GetItemRow, error) {
 		&i.ID,
 		&i.DayID,
 		&i.Time,
+		&i.EndTime,
+		&i.SortOrder,
 		&i.LocationName,
 		&i.DisplayName,
 		&i.Category,
@@ -220,19 +229,21 @@ func (q *Queries) ListDaysByTrip(ctx context.Context, tripID string) ([]ListDays
 }
 
 const listItemsByTrip = `-- name: ListItemsByTrip :many
-SELECT i.id, d.date, i.day_id, i.time, i.location_name, i.display_name,
+SELECT i.id, d.date, i.day_id, i.time, i.end_time, i.sort_order, i.location_name, i.display_name,
        i.category, i.notes, i.geo_name, i.lat, i.lng
 FROM schedule_items i
 JOIN days d ON i.day_id = d.id
 WHERE d.trip_id = ?
-ORDER BY d.date, i.time
+ORDER BY d.date, i.sort_order
 `
 
 type ListItemsByTripRow struct {
 	ID           string                `json:"id"`
 	Date         time.Time             `json:"date"`
 	DayID        string                `json:"day_id"`
-	Time         string                `json:"time"`
+	Time         sql.NullString        `json:"time"`
+	EndTime      sql.NullString        `json:"end_time"`
+	SortOrder    int32                 `json:"sort_order"`
 	LocationName string                `json:"location_name"`
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
@@ -256,6 +267,8 @@ func (q *Queries) ListItemsByTrip(ctx context.Context, tripID string) ([]ListIte
 			&i.Date,
 			&i.DayID,
 			&i.Time,
+			&i.EndTime,
+			&i.SortOrder,
 			&i.LocationName,
 			&i.DisplayName,
 			&i.Category,
@@ -324,9 +337,23 @@ func (q *Queries) ListTrips(ctx context.Context) ([]ListTripsRow, error) {
 	return items, nil
 }
 
+const nextSortOrder = `-- name: NextSortOrder :one
+SELECT CAST(COALESCE(MAX(sort_order) + 1, 0) AS SIGNED)
+FROM schedule_items
+WHERE day_id = ?
+`
+
+func (q *Queries) NextSortOrder(ctx context.Context, dayID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, nextSortOrder, dayID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const updateItem = `-- name: UpdateItem :exec
 UPDATE schedule_items SET
   time = ?,
+  end_time = ?,
   location_name = ?,
   display_name = ?,
   category = ?,
@@ -338,7 +365,8 @@ WHERE id = ?
 `
 
 type UpdateItemParams struct {
-	Time         string                `json:"time"`
+	Time         sql.NullString        `json:"time"`
+	EndTime      sql.NullString        `json:"end_time"`
 	LocationName string                `json:"location_name"`
 	DisplayName  string                `json:"display_name"`
 	Category     ScheduleItemsCategory `json:"category"`
@@ -352,6 +380,7 @@ type UpdateItemParams struct {
 func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) error {
 	_, err := q.db.ExecContext(ctx, updateItem,
 		arg.Time,
+		arg.EndTime,
 		arg.LocationName,
 		arg.DisplayName,
 		arg.Category,
@@ -361,6 +390,22 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) error {
 		arg.Lng,
 		arg.ID,
 	)
+	return err
+}
+
+const updateItemOrder = `-- name: UpdateItemOrder :exec
+UPDATE schedule_items SET sort_order = ?
+WHERE id = ? AND day_id = ?
+`
+
+type UpdateItemOrderParams struct {
+	SortOrder int32  `json:"sort_order"`
+	ID        string `json:"id"`
+	DayID     string `json:"day_id"`
+}
+
+func (q *Queries) UpdateItemOrder(ctx context.Context, arg UpdateItemOrderParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemOrder, arg.SortOrder, arg.ID, arg.DayID)
 	return err
 }
 
