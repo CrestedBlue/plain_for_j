@@ -7,7 +7,6 @@ package dbgen
 import (
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"time"
 )
 
@@ -28,7 +27,7 @@ func (e *ScheduleItemsCategory) Scan(src interface{}) error {
 	case string:
 		*e = ScheduleItemsCategory(s)
 	default:
-		return fmt.Errorf("unsupported scan type for ScheduleItemsCategory: %T", src)
+		return nil
 	}
 	return nil
 }
